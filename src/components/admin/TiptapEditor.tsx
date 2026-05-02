@@ -5,9 +5,10 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered, Quote, Undo, Redo, Link as LinkIcon, ImageIcon, X, Upload } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered, Quote, Undo, Redo, Link as LinkIcon, ImageIcon, X, Upload, ChevronDown, LayoutGrid, Table as TableIcon, GalleryHorizontal, MessageSquareQuote } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
+import { AccordionBlock, TabsBlock, SimpleTableBlock, ImageCarouselBlock, QuoteCarouselBlock } from './editor/blockNodes';
 
 // Stub for storage service - In production, this would upload to Firebase Storage
 async function uploadFileToStorage(file: File): Promise<string> {
@@ -63,7 +64,12 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
       StarterKit,
       CenteredImage,
       Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: 'Tulis ceritamu di sini...' })
+      Placeholder.configure({ placeholder: 'Tulis ceritamu di sini...' }),
+      AccordionBlock,
+      TabsBlock,
+      SimpleTableBlock,
+      ImageCarouselBlock,
+      QuoteCarouselBlock,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -73,7 +79,7 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4 bg-base-50 rounded-b-xl border-x border-b border-border'
+        class: 'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4 bg-background text-foreground rounded-b-xl border-x border-b border-border'
       }
     }
   });
@@ -109,7 +115,7 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
 
   const MenuBar = () => {
     return (
-      <div className="flex flex-wrap items-center gap-1 p-2 bg-base-100 border border-border rounded-t-xl border-b-0 relative">
+      <div className="flex flex-wrap items-center gap-1 p-2 bg-muted/60 border border-border rounded-t-xl border-b-0 relative">
         <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'bg-secondary' : ''}><Bold className="w-4 h-4" /></Button>
         <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'bg-secondary' : ''}><Italic className="w-4 h-4" /></Button>
         <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'bg-secondary' : ''}><Strikethrough className="w-4 h-4" /></Button>
@@ -136,7 +142,29 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
         >
           <ImageIcon className="w-4 h-4" />
         </Button>
-        
+
+        <div className="w-[1px] h-6 bg-border mx-1" />
+        <Button variant="ghost" size="icon" title="Sisipkan Accordion"
+          onClick={() => editor.chain().focus().insertContent({ type: 'accordionBlock' }).run()}>
+          <ChevronDown className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" title="Sisipkan Tabs"
+          onClick={() => editor.chain().focus().insertContent({ type: 'tabsBlock' }).run()}>
+          <LayoutGrid className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" title="Sisipkan Tabel"
+          onClick={() => editor.chain().focus().insertContent({ type: 'simpleTableBlock' }).run()}>
+          <TableIcon className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" title="Sisipkan Carousel Gambar"
+          onClick={() => editor.chain().focus().insertContent({ type: 'imageCarouselBlock' }).run()}>
+          <GalleryHorizontal className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" title="Sisipkan Carousel Kutipan"
+          onClick={() => editor.chain().focus().insertContent({ type: 'quoteCarouselBlock' }).run()}>
+          <MessageSquareQuote className="w-4 h-4" />
+        </Button>
+
         <div className="flex-1" />
         <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}><Undo className="w-4 h-4" /></Button>
         <Button variant="ghost" size="icon" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}><Redo className="w-4 h-4" /></Button>
@@ -161,7 +189,7 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
               placeholder="Paste Image URL here..." 
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm focus:ring focus:ring-primary/50"
+              className="w-full bg-background text-foreground placeholder:text-muted-foreground border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
