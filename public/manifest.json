@@ -1,0 +1,21 @@
+{
+  "name": "Student Success Hub",
+  "short_name": "SuccessHub",
+  "description": "Student achievement tracking and leaderboard.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=success&backgroundColor=4f46e5",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=success&backgroundColor=4f46e5",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

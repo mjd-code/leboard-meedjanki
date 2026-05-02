@@ -1,0 +1,46 @@
+src/components/AdminImportExportTab.tsx:176:        const photoCol = findCol(['photo', 'avatar', 'image']);
+src/components/ImageFallback.tsx:2:import { Avatar as ShadcnAvatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+src/components/ImageFallback.tsx:5:export type ImageFallbackVariant = "avatar" | "logo" | "generic";
+src/components/ImageFallback.tsx:16:export function dicebearAvatar(seed: string | undefined | null): string {
+src/components/ImageFallback.tsx:43:    <ShadcnAvatar 
+src/components/ImageFallback.tsx:47:        <AvatarImage
+src/components/ImageFallback.tsx:63:        <AvatarFallback className="bg-secondary text-muted-foreground flex items-center justify-center rounded-full h-full w-full">
+src/components/ImageFallback.tsx:65:        </AvatarFallback>
+src/components/ImageFallback.tsx:67:    </ShadcnAvatar>
+src/components/ImageFallback.tsx:72:  if (variant === "avatar") return <UserIcon className="w-1/2 h-1/2 opacity-60" />;
+src/components/admin/AdminStudentsTab.tsx:12:import { dicebearAvatar } from '../ImageFallback';
+src/components/admin/AdminStudentsTab.tsx:131:            <ImageFallback src={s.photo} alt={s.name} variant="avatar" className="w-12 h-12 rounded-xl bg-base-200 object-cover" wrapperClassName="w-12 h-12 shrink-0 rounded-xl" />
+src/components/admin/AdminStudentsTab.tsx:187:    photo: student?.photo || dicebearAvatar(student?.name || student?.id || 'student'),
+src/components/admin/AdminStudentsTab.tsx:347:                <ImageFallback src={formData.photo} alt="Avatar" variant="avatar" className="w-32 h-32 rounded-[2rem] border-4 border-slate-50 bg-base-200 shadow-md object-cover" wrapperClassName="w-32 h-32" />
+src/components/ui/Avatar.tsx:4:export interface AvatarProps extends ImageFallbackProps {}
+src/components/ui/Avatar.tsx:6:export function Avatar(props: AvatarProps) {
+src/components/ui/Avatar.tsx:7:  return <ImageFallback variant="avatar" {...props} />;
+src/components/ui/Avatar.tsx:10:export default Avatar;
+src/components/ui/avatar.tsx:2:import * as AvatarPrimitive from "@radix-ui/react-avatar"
+src/components/ui/avatar.tsx:6:const Avatar = React.forwardRef<
+src/components/ui/avatar.tsx:7:  React.ElementRef<typeof AvatarPrimitive.Root>,
+src/components/ui/avatar.tsx:8:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
+src/components/ui/avatar.tsx:10:  <AvatarPrimitive.Root
+src/components/ui/avatar.tsx:19:Avatar.displayName = AvatarPrimitive.Root.displayName
+src/components/ui/avatar.tsx:21:const AvatarImage = React.forwardRef<
+src/components/ui/avatar.tsx:22:  React.ElementRef<typeof AvatarPrimitive.Image>,
+src/components/ui/avatar.tsx:23:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
+src/components/ui/avatar.tsx:25:  <AvatarPrimitive.Image
+src/components/ui/avatar.tsx:31:AvatarImage.displayName = AvatarPrimitive.Image.displayName
+src/components/ui/avatar.tsx:33:const AvatarFallback = React.forwardRef<
+src/components/ui/avatar.tsx:34:  React.ElementRef<typeof AvatarPrimitive.Fallback>,
+src/components/ui/avatar.tsx:35:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
+src/components/ui/avatar.tsx:37:  <AvatarPrimitive.Fallback
+src/components/ui/avatar.tsx:46:AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+src/components/ui/avatar.tsx:48:export { Avatar, AvatarImage, AvatarFallback }
+src/components/pages/StudentProfilePage.tsx:8:import { ImageFallback, dicebearAvatar } from '../ImageFallback';
+src/components/pages/StudentProfilePage.tsx:187:            <ImageFallback src={student.photo || dicebearAvatar(student.name)} alt={student.name} variant="avatar" className="w-32 h-32 rounded-[2rem] border-8 border-base-100 bg-base-100 object-cover" wrapperClassName="w-32 h-32 rounded-[2rem] shadow-2xl" />
+src/components/pages/LeaderboardPage.tsx:6:import { ImageFallback, dicebearAvatar } from '../ImageFallback';
+src/components/pages/LeaderboardPage.tsx:141:      middle: { rank: 1, height: 'h-40 md:h-48', avatarSize: 'w-24 h-24 md:w-32 md:h-32', border: 'border-yellow-400', crown: <Crown className="w-8 h-8 md:w-10 md:h-10 text-yellow-500 absolute -top-6 left-1/2 -translate-x-1/2 drop-shadow-md" />, delay: 0 },
+src/components/pages/LeaderboardPage.tsx:142:      left: { rank: 2, height: 'h-28 md:h-32', avatarSize: 'w-16 h-16 md:w-20 md:h-20', border: 'border-slate-300', crown: <Medal className="w-6 h-6 md:w-8 md:h-8 text-slate-400 absolute -top-4 left-1/2 -translate-x-1/2 drop-shadow-md" />, delay: 0.1 },
+src/components/pages/LeaderboardPage.tsx:143:      right: { rank: 3, height: 'h-24 md:h-28', avatarSize: 'w-16 h-16 md:w-20 md:h-20', border: 'border-orange-400', crown: <Medal className="w-6 h-6 md:w-8 md:h-8 text-orange-500 absolute -top-4 left-1/2 -translate-x-1/2 drop-shadow-md" />, delay: 0.2 },
+src/components/pages/LeaderboardPage.tsx:166:            variant="avatar" 
+src/components/pages/LeaderboardPage.tsx:167:            className={`${config.avatarSize} rounded-full object-cover border-[3px] md:border-4 ${config.border} bg-base-100 relative z-10 cursor-pointer`} 
+src/components/pages/LeaderboardPage.tsx:168:            wrapperClassName={`${config.avatarSize} relative z-10 rounded-full shadow-lg`}
+src/components/pages/LeaderboardPage.tsx:278:                    <ImageFallback src={student.photo} alt={student.name} variant="avatar" className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-base-200 object-cover" wrapperClassName="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-full shadow-sm" />
+src/App.tsx:37:import { ImageFallback, dicebearAvatar } from './components/ImageFallback';

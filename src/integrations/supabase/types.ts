@@ -10,30 +10,195 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      presenter_notes: {
+      activity_logs: {
         Row: {
-          content: string
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          timestamp: string
+          type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          timestamp?: string
+          type?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          timestamp?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      app_events: {
+        Row: {
+          created_at: string
+          device: string
+          event_type: string
+          id: string
+          is_admin: boolean
+          metadata: Json
+          path: string | null
+          ref_id: string | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          device?: string
+          event_type: string
+          id?: string
+          is_admin?: boolean
+          metadata?: Json
+          path?: string | null
+          ref_id?: string | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          device?: string
+          event_type?: string
+          id?: string
+          is_admin?: boolean
+          metadata?: Json
+          path?: string | null
+          ref_id?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
           created_at: string
           id: string
-          slide_id: string
+          name: string
           updated_at: string
         }
         Insert: {
-          content?: string
           created_at?: string
           id?: string
-          slide_id: string
+          name: string
           updated_at?: string
         }
         Update: {
-          content?: string
           created_at?: string
           id?: string
-          slide_id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      master_goals: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          points: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          points?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          points?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          date: string
+          hits: number
+          updated_at: string
+        }
+        Insert: {
+          date: string
+          hits?: number
+          updated_at?: string
+        }
+        Update: {
+          date?: string
+          hits?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          data: Json
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          assigned_goals: Json
+          bio: string | null
+          created_at: string
+          id: string
+          name: string
+          photo: string | null
+          previous_rank: number | null
+          tags: string[] | null
+          total_points: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_goals?: Json
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          photo?: string | null
+          previous_rank?: number | null
+          tags?: string[] | null
+          total_points?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_goals?: Json
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          photo?: string | null
+          previous_rank?: number | null
+          tags?: string[] | null
+          total_points?: number | null
           updated_at?: string
         }
         Relationships: []
