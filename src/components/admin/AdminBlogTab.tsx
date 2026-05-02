@@ -118,11 +118,11 @@ export function AdminBlogTab() {
       header: 'Aksi',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setIsEditing(row.original)}>
+            <Button variant="ghost" size="icon" onClick={() => setIsEditing(row.original)} aria-label="Ubah">
             <Edit2 className="w-4 h-4" />
           </Button>
           {isSuperAdmin && (
-            <Button variant="ghost" size="icon" onClick={() => setDeleteConfirmId(row.original.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+              <Button variant="ghost" size="icon" aria-label="Hapus" onClick={() => setDeleteConfirmId(row.original.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
               <Trash2 className="w-4 h-4" />
             </Button>
           )}
@@ -139,7 +139,7 @@ export function AdminBlogTab() {
           <Button variant="ghost" onClick={() => setIsEditing(null)}><X className="w-4 h-4 mr-2" /> Batal</Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6 bg-base-0 p-6 rounded-2xl border border-border shadow-soft">
+          <div className="md:col-span-2 space-y-6 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft">
             <div className="space-y-2">
               <label className="text-sm font-semibold">Judul Artikel</label>
               <Input
@@ -162,11 +162,11 @@ export function AdminBlogTab() {
             </div>
           </div>
           
-          <div className="space-y-6 bg-base-0 p-6 rounded-2xl border border-border shadow-soft h-fit">
+          <div className="space-y-6 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft h-fit">
             <div className="space-y-2">
               <label className="text-sm font-semibold">Status</label>
               <select 
-                className="w-full p-3 rounded-xl border border-border bg-base-50"
+                className="w-full p-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 value={isEditing.status || 'draft'}
                 onChange={e => setIsEditing({ ...isEditing, status: e.target.value as 'draft' | 'published' })}
               >
@@ -178,7 +178,7 @@ export function AdminBlogTab() {
             <div className="space-y-2">
               <label className="text-sm font-semibold">Penulis</label>
               <select 
-                className="w-full p-3 rounded-xl border border-border bg-base-50"
+                className="w-full p-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 value={isEditing.author_id || ''}
                 onChange={e => setIsEditing({ ...isEditing, author_id: e.target.value })}
               >
@@ -218,7 +218,7 @@ export function AdminBlogTab() {
               <textarea
                 value={isEditing.excerpt || ''}
                 onChange={e => setIsEditing({ ...isEditing, excerpt: e.target.value })}
-                className="w-full p-3 rounded-xl border border-border bg-base-50 min-h-[80px] text-sm"
+                className="w-full p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground min-h-[80px] text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 placeholder="Ringkasan singkat artikel..."
               />
             </div>
@@ -240,15 +240,15 @@ export function AdminBlogTab() {
               <textarea
                 value={isEditing.meta_description || ''}
                 onChange={e => setIsEditing({ ...isEditing, meta_description: e.target.value })}
-                className="w-full p-2 rounded-xl border border-border bg-base-50 min-h-[60px] text-xs"
+                className="w-full p-2 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground min-h-[60px] text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
                 placeholder="Description singkat..."
               />
             </div>
             
-             <div className="bg-base-50 p-3 rounded-lg border border-border text-xs space-y-1 shadow-sm mt-2">
+             <div className="bg-muted/50 p-3 rounded-lg border border-border text-xs space-y-1 shadow-sm mt-2">
                <p className="font-medium text-muted-foreground mb-1 border-b border-border pb-1">Pratinjau Pencarian</p>
-               <p className="font-bold text-blue-600 line-clamp-1">{isEditing.meta_title || isEditing.title || 'Judul Artikel'}</p>
-               <p className="text-green-700 line-clamp-1">https://ppmh.com/blog/{isEditing.slug || 'url-artikel-slug'}</p>
+               <p className="font-bold text-primary line-clamp-1">{isEditing.meta_title || isEditing.title || 'Judul Artikel'}</p>
+               <p className="text-foreground/70 line-clamp-1">https://ppmh.com/blog/{isEditing.slug || 'url-artikel-slug'}</p>
                <p className="text-muted-foreground line-clamp-2">{isEditing.meta_description || isEditing.excerpt || 'Deskripsi akan muncul di sini saat artikel dibagikan atau dicari di Google...'}</p>
             </div>
 
@@ -258,11 +258,12 @@ export function AdminBlogTab() {
             <div className="space-y-4">
               <label className="text-xs font-semibold text-muted-foreground">Gambar Utama (Featured Image)</label>
               {isEditing.featured_image && (
-                <div className="relative w-full h-32 rounded-lg overflow-hidden group border border-border bg-base-200">
+                <div className="relative w-full h-32 rounded-lg overflow-hidden group border border-border bg-muted">
                   <Image src={isEditing.featured_image} alt="Featured" fill referrerPolicy="no-referrer" className="object-cover" />
                   <button 
                     onClick={() => setIsEditing({ ...isEditing, featured_image: '' })}
-                    className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 bg-foreground/60 p-1.5 rounded-full text-background opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Hapus gambar"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -333,7 +334,7 @@ export function AdminBlogTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-base-0 p-6 rounded-2xl border border-border shadow-soft">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">PPMH Insight <Badge className="bg-primary/20 text-primary hover:bg-primary/30">CMS</Badge></h2>
           <p className="text-muted-foreground mt-1 text-sm">Kelola artikel dan konten publikasi pesantren.</p>
@@ -343,7 +344,7 @@ export function AdminBlogTab() {
         </Button>
       </div>
 
-      <div className="bg-base-0 rounded-2xl p-6 border border-border shadow-soft">
+      <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border shadow-soft">
         <DataTable
           columns={columns}
           data={posts}
