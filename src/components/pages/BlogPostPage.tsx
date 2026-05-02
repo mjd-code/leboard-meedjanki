@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { ArrowLeft, CalendarDays, Clock, User, ArrowRight } from 'lucide-react';
 import { HScroller, HScrollItem } from '@/components/ui/HScroller';
 import { ArticleCard } from '@/components/ui/ArticleCard';
+import { BlogContent } from '@/components/blog/BlogContent';
 
 function formatDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
@@ -185,7 +186,8 @@ export function BlogPostPage({ slug }: { slug: string }) {
             )}
 
             {/* Body — drop cap, serif body */}
-            <section
+            <BlogContent
+              html={post.content}
               className="dropcap font-serif-body text-foreground/90 prose prose-lg max-w-none
                          prose-headings:font-display prose-headings:font-bold prose-headings:text-foreground
                          prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-4
@@ -194,7 +196,6 @@ export function BlogPostPage({ slug }: { slug: string }) {
                          prose-a:text-primary prose-a:no-underline hover:prose-a:underline
                          prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:font-display prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:text-foreground
                          prose-img:rounded-none prose-img:mx-auto"
-              dangerouslySetInnerHTML={{ __html: post.content }}
             />
 
             {/* End mark */}
