@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { apiFetch } from '../../lib/api';
 import { UniversalDataTable } from '@/components/ui/UniversalDataTable';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { Database, Loader2 } from 'lucide-react';
 
 type CollectionKey = 'students' | 'masterGoals' | 'categories' | 'posts' | 'logs';
@@ -17,11 +19,31 @@ const COLLECTIONS: { key: CollectionKey; label: string; endpoint: string; filter
 ];
 
 function buildColumns(rows: any[], filterCol: string): ColumnDef<any>[] {
-  if (!rows.length) return [{ accessorKey: 'id', header: 'id', cell: ({ row }) => <span className="text-muted-foreground">{row.original.id || '-'}</span> }];
-  // Union of all keys (capped to first 8 for layout sanity).
+  const selectCol: ColumnDef<any> = {
+    id: 'select',
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+        aria-label="Pilih semua"
+        className="h-4 w-4"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(v) => row.toggleSelected(!!v)}
+        aria-label="Pilih baris"
+        className="h-4 w-4"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  };
+  if (!rows.length) return [selectCol, { accessorKey: 'id', header: 'id', cell: ({ row }) => <span className="text-muted-foreground">{row.original.id || '-'}</span> }];
   const keys = Array.from(rows.reduce<Set<string>>((s, r) => { Object.keys(r || {}).forEach(k => s.add(k)); return s; }, new Set()));
   const ordered = [filterCol, 'id', ...keys.filter(k => k !== filterCol && k !== 'id')];
-  return ordered.slice(0, 8).map((k) => ({
+  const dataCols: ColumnDef<any>[] = ordered.slice(0, 8).map((k) => ({
     accessorKey: k,
     header: k,
     cell: ({ row }) => {
@@ -32,11 +54,15 @@ function buildColumns(rows: any[], filterCol: string): ColumnDef<any>[] {
       return <span className="text-sm text-foreground line-clamp-1 max-w-[320px]" title={s}>{s}</span>;
     },
   }));
+  return [selectCol, ...dataCols];
 }
 
 export function AdminDatabaseTab() {
   const [active, setActive] = useState<CollectionKey>('students');
   const meta = COLLECTIONS.find(c => c.key === active)!;
+  const queryClient = useQueryClient();
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const { data = [], isLoading } = useQuery<any[]>({
     queryKey: ['db-browser', meta.endpoint],
@@ -49,6 +75,21 @@ export function AdminDatabaseTab() {
   });
 
   const columns = useMemo(() => buildColumns(data, meta.filterCol), [data, meta.filterCol]);
+
+  const handleBulkDelete = async () => {
+    if (!bulkDeleteIds || bulkDeleteIds.length === 0) return;
+    setBusy(true);
+    try {
+      await Promise.all(bulkDeleteIds.map(id =>
+        apiFetch(`${meta.endpoint}/${id}`, { method: 'DELETE' }).catch(() => null)
+      ));
+      await queryClient.invalidateQueries({ queryKey: ['db-browser', meta.endpoint] });
+      await queryClient.invalidateQueries({ queryKey: ['app-data'] });
+    } finally {
+      setBusy(false);
+      setBulkDeleteIds(null);
+    }
+  };
 
   return (
     <div className="p-4 sm:p-8 space-y-6">
@@ -81,8 +122,17 @@ export function AdminDatabaseTab() {
           data={data}
           filterColumn={meta.filterCol}
           filterPlaceholder={`Cari ${meta.label.toLowerCase()}…`}
+          onDeleteSelected={(ids) => setBulkDeleteIds(ids)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!bulkDeleteIds}
+        title="Konfirmasi Hapus Massal"
+        message={`Hapus ${bulkDeleteIds?.length ?? 0} baris dari koleksi ${meta.label}? Operasi ini tidak dapat dibatalkan.`}
+        onConfirm={handleBulkDelete}
+        onCancel={() => !busy && setBulkDeleteIds(null)}
+      />
     </div>
   );
 }

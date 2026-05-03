@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { DataTable } from '../ui/DataTable';
 import { ColumnDef } from '@tanstack/react-table';
@@ -20,6 +21,7 @@ export function AdminBlogTab() {
   const { isSuperAdmin } = useAuthRole();
   const [isEditing, setIsEditing] = useState<Partial<Post> | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
 
   const { data: posts = [], isLoading } = useQuery<Post[]>({
     queryKey: ['posts'],
@@ -74,7 +76,40 @@ export function AdminBlogTab() {
     }
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id =>
+        apiFetch(`/api/posts/${id}`, { method: 'DELETE' }).catch(() => null)
+      ));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      setBulkDeleteIds(null);
+    }
+  });
+
   const columns = useMemo<ColumnDef<Post>[]>(() => [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
+          onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+          aria-label="Pilih semua"
+          className="h-4 w-4"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          aria-label="Pilih baris"
+          className="h-4 w-4"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'title',
       header: 'Judul',
@@ -382,6 +417,7 @@ export function AdminBlogTab() {
           data={posts}
           filterColumn="title"
           filterPlaceholder="Cari judul artikel..."
+          onDeleteSelected={isSuperAdmin ? (ids) => setBulkDeleteIds(ids) : undefined}
         />
       </div>
 
@@ -391,6 +427,14 @@ export function AdminBlogTab() {
         message="Apakah Anda yakin ingin menghapus artikel ini? Tindakan ini tidak dapat diurungkan."
         onConfirm={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!bulkDeleteIds}
+        title="Konfirmasi Hapus Massal"
+        message={`Hapus ${bulkDeleteIds?.length ?? 0} artikel? Tindakan ini tidak dapat diurungkan.`}
+        onConfirm={() => bulkDeleteIds && bulkDeleteMutation.mutate(bulkDeleteIds)}
+        onCancel={() => setBulkDeleteIds(null)}
       />
     </div>
   );
