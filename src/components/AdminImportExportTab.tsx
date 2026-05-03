@@ -167,8 +167,7 @@ export function AdminImportExportTab({ apiFetch, students, masterGoals, categori
           title: g.title,
           points: g.points,
           description: g.description || '',
-          category_id: g.categoryId || '',
-          category_name: categoryById.get(String(g.categoryId))?.name || '',
+          category_name: g.categoryName || '',
         }));
         csv = toCSV(rows);
       } else if (key === 'categories') {
@@ -185,8 +184,7 @@ export function AdminImportExportTab({ apiFetch, students, masterGoals, categori
               student_name: s.name,
               goal_id: g.goalId,
               goal_title: mg?.title || '',
-              category_id: mg?.categoryId || '',
-              category_name: categoryById.get(String(mg?.categoryId))?.name || '',
+              category_name: mg?.categoryName || '',
               points: g.points || mg?.points || 0,
               completed: g.completed ? 'true' : 'false',
               completed_at: g.completedAt || '',
@@ -195,7 +193,7 @@ export function AdminImportExportTab({ apiFetch, students, masterGoals, categori
         });
         csv = toCSV(rows, [
           'student_id', 'student_name', 'goal_id', 'goal_title',
-          'category_id', 'category_name', 'points', 'completed', 'completed_at',
+          'category_name', 'points', 'completed', 'completed_at',
         ]);
       } else if (key === 'stats_overview' || key === 'stats_chart') {
         const res = await apiFetch(`/api/stats?range=${statsRange}`);
@@ -435,11 +433,29 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key tetap valid) dalam batch 4
         if (!titleCol) throw new Error('CSV must have a "title" column.');
         const ptsCol = findCol(['points', 'pts']);
         const descCol = findCol(['description', 'desc']);
-        const catIdCol = findCol(['category_id', 'categoryid']);
         const catNameCol = findCol(['category_name', 'category']);
-        // Build name->id map for category lookup
-        const catNameToId = new Map<string, string>();
-        (categories || []).forEach((c) => catNameToId.set(c.name.toLowerCase(), c.id));
+        // ---- Smart Import: upsert categories using slugified name as the natural ID. ----
+        if (importType === 'goals' && catNameCol) {
+          const slugify = (s: string) =>
+            s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+          const uniqueNames = new Map<string, string>(); // slug -> display name
+          for (const row of previewRows) {
+            const raw = (row[catNameCol] || '').trim();
+            if (!raw) continue;
+            const slug = slugify(raw);
+            if (slug && !uniqueNames.has(slug)) uniqueNames.set(slug, raw);
+          }
+          const existing = new Set((categories || []).map((c: any) => slugify(c.name || '')));
+          for (const [slug, name] of uniqueNames.entries()) {
+            if (existing.has(slug)) continue;
+            await apiFetch('/api/categories', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: slug, name }),
+            }).catch(() => {});
+          }
+        }
+        // ---- Insert Goals (linked by categoryName as natural FK). ----
         for (const row of previewRows) {
           const title = (row[titleCol] || '').trim();
           if (!title) continue;
@@ -449,10 +465,7 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key tetap valid) dalam batch 4
             const pts = parseInt(String(ptsRaw || '0'), 10);
             payload.points = isNaN(pts) ? 0 : pts;
             if (descCol) payload.description = row[descCol] || '';
-            let categoryId: string | undefined;
-            if (catIdCol && row[catIdCol]) categoryId = row[catIdCol];
-            else if (catNameCol && row[catNameCol]) categoryId = catNameToId.get(row[catNameCol].toLowerCase().trim());
-            if (categoryId) payload.categoryId = categoryId;
+            if (catNameCol && row[catNameCol]) payload.categoryName = (row[catNameCol] || '').trim();
           }
           const res = await apiFetch('/api/masterGoals', {
             method: 'POST',
