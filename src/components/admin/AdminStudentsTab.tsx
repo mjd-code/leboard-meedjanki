@@ -329,9 +329,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
   const visibleCompletedCount = visibleGoalIds.filter(id => isCompleted(id)).length;
   const allVisibleAssigned = visibleGoalIds.length > 0 && visibleAssignedCount === visibleGoalIds.length;
   const allVisibleCompleted = visibleAssignedCount > 0 && visibleCompletedCount === visibleAssignedCount;
-  const scopeLabel = filterCat === 'ALL'
-    ? 'all tracks'
-    : (categories.find((c: any) => c.id === filterCat)?.name || 'this track');
+  const scopeLabel = filterCat === 'ALL' ? 'all tracks' : filterCat;
 
   const bulkSetAssigned = (assign: boolean) => {
     setFormData(prev => {
@@ -459,7 +457,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
               </div>
               <select className="bg-secondary border-none rounded-xl p-2 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary/50" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
                 <option value="ALL">Semua Jalur</option>
-                {categories.map((c: any, index: number) => <option key={c.id || `cp1-${index}`} value={c.id}>{c.name}</option>)}
+                {categories.map((c: any, index: number) => <option key={c.id || `cp1-${index}`} value={c.name}>{c.name}</option>)}
               </select>
             </div>
 
