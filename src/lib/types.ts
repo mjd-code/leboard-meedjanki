@@ -18,7 +18,7 @@ export interface Category {
 
 export interface MasterGoal {
   id: string;
-  categoryId: string;
+  categoryName: string;
   title: string;
   points: number;
   description: string;

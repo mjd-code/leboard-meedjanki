@@ -122,7 +122,7 @@ const mapStudentInput = (s: any) => {
 
 const mapGoalRow = (r: any) => ({
   id: r.id,
-  categoryId: r.category_id,
+  categoryName: r.category_name ?? r.categoryName ?? "",
   title: r.title,
   points: r.points,
   description: r.description || "",
@@ -130,7 +130,7 @@ const mapGoalRow = (r: any) => ({
 
 const mapGoalInput = (g: any) => {
   const out: any = {};
-  if (g.categoryId !== undefined) out.category_id = g.categoryId;
+  if (g.categoryName !== undefined) out.category_name = g.categoryName;
   if (g.title !== undefined) out.title = g.title;
   if (g.points !== undefined) out.points = g.points;
   if (g.description !== undefined) out.description = g.description;

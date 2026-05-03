@@ -301,7 +301,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
 
   const displayedMasterGoals = filterCat === 'ALL' 
     ? masterGoals 
-    : masterGoals.filter((mg: any) => mg.categoryId === filterCat);
+    : masterGoals.filter((mg: any) => (mg.categoryName || '').toLowerCase() === String(filterCat).toLowerCase());
 
   const isAssigned = (goalId: string) => formData.assignedGoals.some(ag => ag.goalId === goalId);
   const isCompleted = (goalId: string) => formData.assignedGoals.find(ag => ag.goalId === goalId)?.completed || false;
@@ -329,9 +329,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
   const visibleCompletedCount = visibleGoalIds.filter(id => isCompleted(id)).length;
   const allVisibleAssigned = visibleGoalIds.length > 0 && visibleAssignedCount === visibleGoalIds.length;
   const allVisibleCompleted = visibleAssignedCount > 0 && visibleCompletedCount === visibleAssignedCount;
-  const scopeLabel = filterCat === 'ALL'
-    ? 'all tracks'
-    : (categories.find((c: any) => c.id === filterCat)?.name || 'this track');
+  const scopeLabel = filterCat === 'ALL' ? 'all tracks' : filterCat;
 
   const bulkSetAssigned = (assign: boolean) => {
     setFormData(prev => {
@@ -459,7 +457,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
               </div>
               <select className="bg-secondary border-none rounded-xl p-2 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary/50" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
                 <option value="ALL">Semua Jalur</option>
-                {categories.map((c: any, index: number) => <option key={c.id || `cp1-${index}`} value={c.id}>{c.name}</option>)}
+                {categories.map((c: any, index: number) => <option key={c.id || `cp1-${index}`} value={c.name}>{c.name}</option>)}
               </select>
             </div>
 
@@ -520,7 +518,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-black text-primary uppercase tracking-widest">{mg.points !== undefined ? mg.points : (mg as any).pointValue || 0} pts</span>
                           <span className="text-[10px] text-muted-foreground">•</span>
-                          <span className="text-[10px] font-medium text-muted-foreground">{categories.find((c: any)=>c.id === mg.categoryId)?.name}</span>
+                          <span className="text-[10px] font-medium text-muted-foreground">{mg.categoryName || '—'}</span>
                         </div>
                       </div>
                       

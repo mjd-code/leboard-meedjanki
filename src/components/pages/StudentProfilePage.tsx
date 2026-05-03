@@ -165,7 +165,7 @@ function StudentProfilePage({ studentId, students, masterGoals, categories, calc
     const goalsInCat = (student.assignedGoals || [])
       .map(ag => {
         const goalData = masterGoals.find(mg => mg.id === ag.goalId);
-        if (goalData?.categoryId === cat.id) return { ...ag, ...goalData };
+        if (goalData?.categoryName && goalData.categoryName.toLowerCase() === (cat.name || '').toLowerCase()) return { ...ag, ...goalData };
         return null;
       })
       .filter(Boolean) as (AssignedGoal & MasterGoal)[];
