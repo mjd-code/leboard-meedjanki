@@ -5,11 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import type { Post } from '../../lib/types';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowLeft, CalendarDays, Clock, User, ArrowRight } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock, User, ArrowRight, Eye } from 'lucide-react';
 import { HScroller, HScrollItem } from '@/components/ui/HScroller';
 import { ArticleCard } from '@/components/ui/ArticleCard';
 import { BlogContent } from '@/components/blog/BlogContent';
+import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
 function formatDate(d?: string | null) {
   return d ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
@@ -47,6 +47,23 @@ export function BlogPostPage({ slug }: { slug: string }) {
 
   // Reading progress (sticky bar at top)
   const [progress, setProgress] = React.useState(0);
+  
+  // Track article read
+  React.useEffect(() => {
+    if (post && post.id) {
+      const KEY = `ppmh_read_${post.id}`;
+      // only count once per session
+      if (!sessionStorage.getItem(KEY)) {
+        sessionStorage.setItem(KEY, '1');
+        apiFetch('/api/track-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: post.id })
+        }).catch(console.error);
+      }
+    }
+  }, [post?.id]);
+
   React.useEffect(() => {
     const onScroll = () => {
       const h = document.documentElement;
@@ -171,14 +188,24 @@ export function BlogPostPage({ slug }: { slug: string }) {
                 <Clock className="w-3.5 h-3.5" />
                 <span>{readingTime(post.content)}</span>
               </div>
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+              <div className="flex items-center gap-2" title="Total Views">
+                <Eye className="w-3.5 h-3.5" />
+                <span>{(post.organic_views || 0) + (post.offset_views || 0)}</span>
+              </div>
             </div>
 
             {/* Featured image */}
             {post.featured_image && (
               <figure className="mb-12 -mx-4 sm:mx-0">
-                <div className="relative w-full aspect-[16/9] bg-muted overflow-hidden">
-                  <Image src={post.featured_image} alt={post.title} fill referrerPolicy="no-referrer" priority className="object-cover" />
-                </div>
+                <ImageWithFallback 
+                  src={post.featured_image || null} 
+                  alt={post.title} 
+                  fallbackType="gradient"
+                  fill 
+                  priority
+                  containerClassName="w-full aspect-[16/9]"
+                />
                 <figcaption className="text-xs text-muted-foreground italic font-serif-body text-center mt-3 px-4">
                   {post.title}
                 </figcaption>

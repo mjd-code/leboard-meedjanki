@@ -95,23 +95,27 @@ export function LandingPage() {
     .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
     .slice(0, 8);
 
+  // Stats Hook
+  const [statsRange, setStatsRange] = React.useState('all');
+  const { data: analytics } = useQuery({
+    queryKey: ['public-analytics', statsRange],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/stats?range=${statsRange}`);
+      if (!res.ok) throw new Error('Fetch failed');
+      return res.json();
+    }
+  });
+
   // Stats
-  const totalViews = allPosts.reduce((s, p) => s + (((p as any).views as number) || 0), 0);
+  const totalViews = allPosts.reduce((s, p) => s + (((p as any).organic_views as number) || 0) + (((p as any).offset_views as number) || 0), 0);
   const totalPoints = students.reduce((s, st) => s + (st.totalPoints || 0), 0);
   const stats = [
+    { label: 'Web Visitors', value: analytics?.uniqueVisitors || 0, icon: Users, hint: 'Pengunjung Unik' },
+    { label: 'Artikel Dibaca', value: analytics?.articleReads || totalViews || 0, icon: Eye, hint: 'Global Article Readers' },
     { label: 'Santri', value: students.length, icon: Users, hint: 'Santri terdaftar' },
     { label: 'Artikel', value: allPosts.length, icon: Newspaper, hint: 'Telah diterbitkan' },
-    { label: 'Kategori', value: categoryCounts.length, icon: BookOpen, hint: 'Rubrik aktif' },
-    { label: 'Total Views', value: totalViews, icon: Eye, hint: 'Pembaca artikel' },
     { label: 'Total Poin', value: totalPoints, icon: Target, hint: 'Capaian santri' },
-    {
-      label: 'Top Score',
-      value: topStudents[0]?.totalPoints || 0,
-      icon: Trophy,
-      hint: topStudents[0]?.name || '—',
-    },
-    { label: 'Editor', value: 1, icon: Sparkles, hint: 'Tim redaksi' },
-    { label: 'Lulusan', value: '∞', icon: GraduationCap, hint: 'Komunitas alumni' },
+    { label: 'Kategori', value: categoryCounts.length, icon: BookOpen, hint: 'Rubrik aktif' },
   ];
 
   // Mock trends
@@ -214,6 +218,17 @@ export function LandingPage() {
             <Activity className="w-3.5 h-3.5 text-primary" /> Statistik PPMH
           </span>
           <span className="flex-1 editorial-rule" />
+          <select 
+            value={statsRange} 
+            onChange={e => setStatsRange(e.target.value)}
+            className="bg-transparent border border-border text-foreground rounded-lg py-1 px-2 text-[10px] focus:outline-none"
+          >
+            <option value="today">Hari Ini</option>
+            <option value="1w">Minggu Ini</option>
+            <option value="1m">Bulan Ini</option>
+            <option value="1y">Tahun Ini</option>
+            <option value="all">All-Time</option>
+          </select>
         </div>
 
         <HScroller ariaLabel="Statistik PPMH">

@@ -8,26 +8,10 @@ const withSerwist = withSerwistInit({
   reloadOnOnline: true,
 });
 
-// Bridge legacy VITE_* env vars to NEXT_PUBLIC_* so the browser bundle
-// receives them. The .env file is auto-managed by Lovable Cloud and uses
-// VITE_ names; Next.js only exposes NEXT_PUBLIC_* to the client.
-const SUPA_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '';
-const SUPA_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
-const SUPA_PID =
-  process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID ??
-  process.env.VITE_SUPABASE_PROJECT_ID ?? '';
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['ais-dev-cjvugk63n7wxv5427ewfm3-174887710382.asia-southeast1.run.app'],
   reactStrictMode: true,
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: SUPA_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: SUPA_KEY,
-    NEXT_PUBLIC_SUPABASE_PROJECT_ID: SUPA_PID,
-  },
   // Phase 3: Production hardening
   output: 'standalone',
   poweredByHeader: false,
@@ -60,6 +44,14 @@ const nextConfig = {
     ],
   },
   typescript: { ignoreBuildErrors: false },
+  webpack: (config, {dev}) => {
+    if (dev && process.env.DISABLE_HMR === 'true') {
+      config.watchOptions = {
+        ignored: /.*/,
+      };
+    }
+    return config;
+  },
 };
 
 export default withSerwist(nextConfig);

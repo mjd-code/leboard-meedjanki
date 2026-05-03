@@ -59,8 +59,7 @@ function LoginPage({ onLogin, appSettings }: { onLogin: () => void, appSettings?
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl border border-border focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all outline-none"
-              placeholder="admin@example.com"
-              required
+              placeholder="admin@example.com (Kosongkan jika super admin)"
             />
           </div>
           <div>

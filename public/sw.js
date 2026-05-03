@@ -66,7 +66,7 @@ const isAppShell = (url, req) =>
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
-  // Never intercept non-GET, /api/*, cross-origin (Firebase, Supabase, etc).
+  // Never intercept non-GET, /api/*, cross-origin (Firebase, etc).
   if (req.method !== 'GET') return;
   let url;
   try { url = new URL(req.url); } catch { return; }

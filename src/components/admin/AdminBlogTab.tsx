@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Globe, EyeOff, Check, X, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, Globe, EyeOff, Check, X, ShieldAlert, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { Button } from '../ui/button';
@@ -12,6 +12,8 @@ import type { Post, AdminUser } from '../../lib/types';
 import { TiptapEditor } from './TiptapEditor';
 import { useAuthRole } from '@/hooks/useAuthRole';
 import Image from 'next/image';
+import { ImageUploader } from '../ui/ImageUploader';
+import { toast } from 'sonner';
 
 export function AdminBlogTab() {
   const queryClient = useQueryClient();
@@ -84,10 +86,27 @@ export function AdminBlogTab() {
       cell: ({ row }) => {
         const isPub = row.getValue('status') === 'published';
         return (
-          <Badge variant={isPub ? 'default' : 'secondary'} className="gap-1 rounded-full">
-            {isPub ? <Globe className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            {isPub ? 'Terbit' : 'Draf'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={isPub ? 'default' : 'secondary'} className="gap-1 rounded-full whitespace-nowrap">
+              {isPub ? <Globe className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              {isPub ? 'Terbit' : 'Draf'}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 w-6 p-0"
+              title={isPub ? "Jadikan Draf" : "Terbitkan"}
+              onClick={() => {
+                 saveMutation.mutate({ 
+                   id: row.original.id, 
+                   status: isPub ? 'draft' : 'published',
+                   published_at: isPub ? row.original.published_at : new Date().toISOString()
+                 });
+              }}
+            >
+              {isPub ? <EyeOff className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+            </Button>
+          </div>
         );
       }
     },
@@ -224,6 +243,23 @@ export function AdminBlogTab() {
             </div>
 
             <hr className="border-border my-2" />
+            <h3 className="font-bold text-sm">Analytics & Views</h3>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground">Offset Views (Seeding)</label>
+              <Input
+                type="number"
+                min="0"
+                value={isEditing.offset_views || 0}
+                onChange={e => setIsEditing({ ...isEditing, offset_views: parseInt(e.target.value, 10) || 0 })}
+                className="h-9 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Organic Views: {isEditing.organic_views || 0} | Total: {(isEditing.organic_views || 0) + (isEditing.offset_views || 0)}
+              </p>
+            </div>
+
+            <hr className="border-border my-2" />
             <h3 className="font-bold text-sm">SEO & Social Sharing</h3>
 
             <div className="space-y-2">
@@ -276,52 +312,48 @@ export function AdminBlogTab() {
                   placeholder="URL Gambar..."
                   className="h-8 text-sm flex-1"
                 />
-                <Button variant="outline" size="sm" className="w-full relative overflow-hidden" asChild>
-                  <label className="cursor-pointer">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="absolute inset-0 opacity-0 cursor-pointer hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const img = new globalThis.Image();
-                            img.onload = () => {
-                              const canvas = document.createElement('canvas');
-                              let width = img.width;
-                              let height = img.height;
-                              const MAX_WIDTH = 1200;
-                              if (width > MAX_WIDTH) {
-                                height = Math.round((height * MAX_WIDTH) / width);
-                                width = MAX_WIDTH;
-                              }
-                              canvas.width = width;
-                              canvas.height = height;
-                              const ctx = canvas.getContext('2d');
-                              if (ctx) {
-                                ctx.drawImage(img, 0, 0, width, height);
-                                const dataUrl = canvas.toDataURL('image/webp', 0.8);
-                                setIsEditing({ ...isEditing, featured_image: dataUrl });
-                              }
-                            };
-                            img.src = event.target?.result as string;
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-                    Pilih Gambar Lokal
-                  </label>
-                </Button>
+                <ImageUploader 
+                  folder="thumbnails" 
+                  aspectRatio={16/9} 
+                  onUploadSuccess={(url) => setIsEditing({ ...isEditing, featured_image: url })} 
+                  trigger={
+                    <Button variant="outline" size="sm" className="w-full relative overflow-hidden" type="button">
+                      Pilih Gambar Lokal
+                    </Button>
+                  }
+                  className="w-full"
+                />
               </div>
             </div>
 
             <Button 
               className="w-full rounded-xl py-6 font-bold shadow-primary-glow mt-6" 
-              onClick={() => saveMutation.mutate({ ...isEditing, published_at: isEditing.status === 'published' && !isEditing.published_at ? new Date().toISOString() : isEditing.published_at })}
+              onClick={() => {
+                let generatedSlug = isEditing.slug;
+                if (!generatedSlug && isEditing.title) {
+                  generatedSlug = isEditing.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                }
+
+                let generatedExcerpt = isEditing.excerpt;
+                if (!generatedExcerpt && isEditing.content) {
+                  const tempEl = document.createElement('div');
+                  tempEl.innerHTML = isEditing.content;
+                  const text = tempEl.textContent || tempEl.innerText || '';
+                  generatedExcerpt = text.slice(0, 160).trim() + (text.length > 160 ? '...' : '');
+                }
+
+                let finalMetaTitle = isEditing.meta_title || isEditing.title;
+                let finalMetaDesc = isEditing.meta_description || generatedExcerpt;
+
+                saveMutation.mutate({ 
+                  ...isEditing, 
+                  slug: generatedSlug,
+                  excerpt: generatedExcerpt,
+                  meta_title: finalMetaTitle,
+                  meta_description: finalMetaDesc,
+                  published_at: isEditing.status === 'published' && !isEditing.published_at ? new Date().toISOString() : isEditing.published_at 
+                });
+              }}
               disabled={saveMutation.isPending || !isEditing.title}
             >
               {saveMutation.isPending ? 'Menyimpan...' : (isEditing.id ? 'Simpan Perubahan' : 'Buat Artikel')}

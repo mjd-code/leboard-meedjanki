@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import type { Post } from '../../lib/types';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowLeft, Clock, LayoutGrid, Flame, Star } from 'lucide-react';
 import { slugifyCategory } from '../../lib/categorySlug';
 import { HScroller, HScrollItem } from '@/components/ui/HScroller';
@@ -13,6 +12,7 @@ import { CategoryChips } from '@/components/ui/CategoryChips';
 import { ArticleCard } from '@/components/ui/ArticleCard';
 import { SmartSearchBar, type SortKey } from '@/components/ui/SmartSearchBar';
 import { SimplePagination } from '@/components/ui/SimplePagination';
+import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
 function formatDate(d?: string | null) {
   return d
@@ -176,21 +176,15 @@ export function BlogListPage() {
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 pb-12 mb-12 border-b border-border">
                 <article className="lg:col-span-2 group">
                   <Link href={`/blog/${lead.slug || lead.id}`} className="block">
-                    {lead.featured_image ? (
-                      <div className="relative w-full aspect-[16/10] overflow-hidden mb-6 bg-muted">
-                        <Image
-                          src={lead.featured_image}
-                          alt={lead.title}
-                          fill
-                          referrerPolicy="no-referrer"
-                          className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full aspect-[16/10] bg-foreground/[0.03] flex items-center justify-center mb-6">
-                        <span className="font-display text-foreground/10 text-7xl font-black">PPMH</span>
-                      </div>
-                    )}
+                    <ImageWithFallback
+                      src={lead.featured_image || null}
+                      alt={lead.title}
+                      fallbackType="gradient"
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 66vw"
+                      containerClassName="w-full aspect-[16/10] mb-6"
+                      className="transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
                     {lead.category && (
                       <span className="inline-block text-[10px] uppercase tracking-[0.3em] font-bold text-primary mb-3">
                         {lead.category}
@@ -215,17 +209,15 @@ export function BlogListPage() {
                   {secondaryFeatured.map((post, idx) => (
                     <article key={post.id} className={`group ${idx > 0 ? 'pt-8' : ''}`}>
                       <Link href={`/blog/${post.slug || post.id}`} className="block">
-                        {post.featured_image && (
-                          <div className="relative w-full aspect-[16/9] overflow-hidden mb-4 bg-muted">
-                            <Image
-                              src={post.featured_image}
-                              alt={post.title}
-                              fill
-                              referrerPolicy="no-referrer"
-                              className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                            />
-                          </div>
-                        )}
+                        <ImageWithFallback
+                          src={post.featured_image || null}
+                          alt={post.title}
+                          fallbackType="gradient"
+                          fill
+                          sizes="(max-width: 1024px) 100vw, 33vw"
+                          containerClassName="w-full aspect-[16/9] mb-4"
+                          className="transition-transform duration-700 group-hover:scale-[1.03]"
+                        />
                         {post.category && (
                           <span className="inline-block text-[10px] uppercase tracking-[0.3em] font-bold text-primary mb-2">
                             {post.category}

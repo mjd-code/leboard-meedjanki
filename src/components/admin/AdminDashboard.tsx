@@ -9,7 +9,6 @@ import { AdminGoalsTab } from './AdminGoalsTab';
 import { AdminAppearanceTab } from './AdminAppearanceTab';
 import { AdminStatisticsTab } from './AdminStatisticsTab';
 import { AdminImportExportTab } from '../AdminImportExportTab';
-import { AdminBackendTab } from '../AdminBackendTab';
 import CacheHealthTab from '../CacheHealthTab';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminBlogTab } from './AdminBlogTab';
@@ -81,7 +80,6 @@ export function AdminDashboard({ students, refreshData, masterGoals, categories,
               { id: 'appearance', label: 'Tampilan', icon: Palette, show: true },
               { id: 'statistics', label: 'Statistik', icon: Search, show: true },
               { id: 'import-export', label: 'Impor / Ekspor', icon: Database, show: true },
-              { id: 'backend', label: 'Backend & DB', icon: Server, show: isSuperAdmin },
               { id: 'admin-users', label: isSuperAdmin ? 'Manajemen Admin' : 'Profil Editor', icon: UserCog, show: true },
               { id: 'cache', label: 'Manajemen PWA', icon: ShieldCheck, show: true }
             ].filter(t => t.show).map(tab => (
@@ -136,9 +134,6 @@ export function AdminDashboard({ students, refreshData, masterGoals, categories,
               categories={categories}
               refreshData={refreshData}
             />
-          )}
-          {activeTab === 'backend' && (
-            <AdminBackendTab refreshData={refreshData} />
           )}
           {activeTab === 'admin-users' && (
             <AdminUserManagement />

@@ -1,13 +1,22 @@
-"use client";
+import { Metadata } from 'next';
+import { BlogPostPage } from '@/components/pages/BlogPostPage';
 
-import dynamic from "next/dynamic";
-import { useParams } from "next/navigation";
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  return {
+    title: `Blog Post`,
+    description: `Read our latest insights`,
+    openGraph: {
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+    }
+  };
+}
 
-const BlogPostPage = dynamic(() => import("@/components/pages/BlogPostPage").then(mod => mod.BlogPostPage), { ssr: false });
-
-export default function Page() {
-  const params = useParams();
-  const slug = params?.slug as string;
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   
   if (!slug) return null;
 

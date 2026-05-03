@@ -9,37 +9,8 @@ import { Bold, Italic, Strikethrough, Heading1, Heading2, List, ListOrdered, Quo
 import { Button } from '../ui/button';
 import { useEffect, useState } from 'react';
 import { AccordionBlock, TabsBlock, SimpleTableBlock, ImageCarouselBlock, QuoteCarouselBlock } from './editor/blockNodes';
-
-// Stub for storage service - In production, this would upload to Firebase Storage
-async function uploadFileToStorage(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new globalThis.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const MAX_WIDTH = 1200;
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/webp', 0.8));
-        } else {
-          resolve(event.target?.result as string);
-        }
-      };
-      if (event.target?.result) img.src = event.target.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
+import { batchUploadImages } from '@/lib/uploadImage';
+import { toast } from 'sonner';
 
 // Custom Extension to center image
 const CenteredImage = Image.extend({
@@ -75,7 +46,13 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
       // Auto-save to localStorage
-      localStorage.setItem('ppmh_insight_draft', editor.getHTML());
+      try {
+        localStorage.setItem('ppmh_insight_draft', editor.getHTML());
+      } catch (e: any) {
+        if (e.name === 'QuotaExceededError') {
+          console.warn('Local storage quota exceeded, cannot save draft locally.');
+        }
+      }
     },
     editorProps: {
       attributes: {
@@ -101,14 +78,21 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
       setIsUploading(true);
+      const tid = toast.loading('Memulai upload...');
       try {
-        const url = await uploadFileToStorage(file);
-        setImageUrl(url);
+        const urls = await batchUploadImages(files, 'post_images', tid);
+        urls.forEach((url) => {
+          editor.chain().focus().setImage({ src: url }).run();
+        });
+        setShowMediaManager(false);
+      } catch (err) {
+        console.error(err);
       } finally {
         setIsUploading(false);
+        e.target.value = '';
       }
     }
   };
@@ -201,7 +185,7 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
             </div>
             <label className="flex items-center justify-center gap-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors cursor-pointer border border-border border-dashed relative">
               {isUploading ? 'Uploading...' : <><Upload className="w-4 h-4"/> Pilih File Local</>}
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+              <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
             </label>
           </div>
           <Button onClick={handleApplyMedia} disabled={!imageUrl || isUploading} className="w-full rounded-xl mt-1">

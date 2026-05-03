@@ -46,6 +46,8 @@ export interface Post {
   published_at: string | null;
   updated_at: string;
   created_at: string;
+  organic_views?: number;
+  offset_views?: number;
 }
 
 export interface Student {

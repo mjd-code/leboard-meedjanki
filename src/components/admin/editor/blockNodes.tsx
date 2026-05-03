@@ -1,7 +1,10 @@
 import React from 'react';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent, NodeViewProps } from '@tiptap/react';
-import { ChevronDown, Plus, Trash2, GripVertical, Image as ImageIcon, Quote } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, GripVertical, Image as ImageIcon, Quote, Loader2, Upload } from 'lucide-react';
+import { ImageUploader } from '../../ui/ImageUploader';
+import { toast } from 'sonner';
+import { batchUploadImages } from '@/lib/uploadImage';
 
 /* =====================================================================
  * Shared helpers
@@ -77,7 +80,13 @@ function BlockShell({
 type AccordionItem = { title: string; body: string };
 
 function AccordionView({ node, updateAttributes, deleteNode }: NodeViewProps) {
-  const items: AccordionItem[] = node.attrs.items || [];
+  let items: AccordionItem[] = [];
+  try {
+    items = Array.isArray(node.attrs.items) 
+      ? node.attrs.items 
+      : (typeof node.attrs.items === 'string' ? JSON.parse(node.attrs.items) : []);
+  } catch (e) { items = []; }
+  if (!Array.isArray(items)) items = [];
   const update = (next: AccordionItem[]) => updateAttributes({ items: next });
 
   return (
@@ -152,7 +161,13 @@ export const AccordionBlock = Node.create({
 type TabItem = { label: string; body: string };
 
 function TabsView({ node, updateAttributes, deleteNode }: NodeViewProps) {
-  const items: TabItem[] = node.attrs.items || [];
+  let items: TabItem[] = [];
+  try {
+    items = Array.isArray(node.attrs.items) 
+      ? node.attrs.items 
+      : (typeof node.attrs.items === 'string' ? JSON.parse(node.attrs.items) : []);
+  } catch (e) { items = []; }
+  if (!Array.isArray(items)) items = [];
   const [active, setActive] = React.useState(0);
   const update = (next: TabItem[]) => updateAttributes({ items: next });
   const cur = Math.min(active, Math.max(0, items.length - 1));
@@ -366,16 +381,33 @@ export const SimpleTableBlock = Node.create({
 type ImgItem = { src: string; alt?: string; caption?: string };
 
 function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
-  const items: ImgItem[] = node.attrs.items || [];
+  let items: ImgItem[] = [];
+  try {
+    items = Array.isArray(node.attrs.items) 
+      ? node.attrs.items 
+      : (typeof node.attrs.items === 'string' ? JSON.parse(node.attrs.items) : []);
+  } catch (e) { items = []; }
+  if (!Array.isArray(items)) items = [];
   const update = (next: ImgItem[]) => updateAttributes({ items: next });
 
-  const onUpload = async (i: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      update(items.map((x, j) => (j === i ? { ...x, src: dataUrl } : x)));
-    };
-    reader.readAsDataURL(file);
+  // Use ImageUploader directly in the render
+  const onUpload = async (i: number, url: string) => {
+    update(items.map((x, j) => (j === i ? { ...x, src: url } : x)));
+  };
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const tid = toast.loading('Memulai upload batch...');
+    try {
+      const urls = await batchUploadImages(files, 'post_images', tid);
+      const newItems = urls.map(url => ({ src: url, alt: '', caption: '' }));
+      update([...items, ...newItems]);
+    } catch(err) {
+      console.error(err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   return (
@@ -390,15 +422,12 @@ function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps
                 onChange={(v) => update(items.map((x, j) => (j === i ? { ...x, src: v } : x)))}
                 placeholder="URL gambar..."
               />
-              <label className="text-xs text-primary cursor-pointer hover:underline shrink-0">
-                Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(i, f); e.target.value = ''; }}
-                />
-              </label>
+              <ImageUploader 
+                folder="post_images" 
+                maxResolution={1200}
+                onUploadSuccess={(url) => onUpload(i, url)} 
+                trigger={<span className="text-xs text-primary cursor-pointer hover:underline shrink-0">Upload Individual</span>}
+              />
               <button type="button" onClick={() => update(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive p-1" aria-label="Hapus">
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -421,13 +450,20 @@ function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps
             )}
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => update([...items, { src: '', alt: '', caption: '' }])}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-        >
-          <Plus className="w-3.5 h-3.5" /> Tambah Gambar
-        </button>
+        <div className="flex flex-wrap gap-4 pt-2">
+          <button
+            type="button"
+            onClick={() => update([...items, { src: '', alt: '', caption: '' }])}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline hover:text-primary/80 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Tambah Manual
+          </button>
+          
+          <label className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:underline cursor-pointer transition-colors bg-emerald-50 px-2 py-1.5 rounded disabled:opacity-50">
+            <Upload className="w-3.5 h-3.5" /> Bulk Upload (Maks 20 / Limit Firestore)
+            <input type="file" multiple accept="image/*" onChange={handleBulkUpload} className="hidden" />
+          </label>
+        </div>
       </div>
     </BlockShell>
   );
@@ -466,7 +502,13 @@ export const ImageCarouselBlock = Node.create({
 type QuoteItem = { quote: string; attribution?: string };
 
 function QuoteCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
-  const items: QuoteItem[] = node.attrs.items || [];
+  let items: QuoteItem[] = [];
+  try {
+    items = Array.isArray(node.attrs.items) 
+      ? node.attrs.items 
+      : (typeof node.attrs.items === 'string' ? JSON.parse(node.attrs.items) : []);
+  } catch (e) { items = []; }
+  if (!Array.isArray(items)) items = [];
   const update = (next: QuoteItem[]) => updateAttributes({ items: next });
 
   return (

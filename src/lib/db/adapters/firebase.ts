@@ -17,7 +17,7 @@ import type {
 } from "../types";
 
 const NOT_IMPLEMENTED = "FirebaseAdapter is scaffolded but not yet wired. " +
-  "Set NEXT_PUBLIC_DB_PROVIDER to 'supabase' or 'mock', or implement this adapter.";
+  "Set NEXT_PUBLIC_DB_PROVIDER to 'firebase' or 'mock', or implement this adapter.";
 
 export class FirebaseAdapter implements NewsRepository {
   readonly name = "firebase";
