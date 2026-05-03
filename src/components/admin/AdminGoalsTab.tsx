@@ -78,19 +78,18 @@ export function AdminGoalsTab({ masterGoals, refreshData, categories }: any) {
   // --- DATA PREP ---
   const groupedGoals = useMemo(() => {
     const groups: { [key: string]: { category: any, goals: any[] } } = {};
-    const unknownCatId = 'unknown-cat';
-    
+    const unknownKey = '__unknown__';
+    const norm = (s: string) => (s || '').toLowerCase().trim();
+
     categories.forEach((c: any) => {
-      groups[c.id] = { category: c, goals: [] };
+      groups[norm(c.name)] = { category: c, goals: [] };
     });
-    groups[unknownCatId] = { category: { id: unknownCatId, name: 'Kategori Tidak Diketahui', isSystem: true }, goals: [] };
+    groups[unknownKey] = { category: { id: unknownKey, name: 'Kategori Tidak Diketahui', isSystem: true }, goals: [] };
 
     masterGoals.forEach((g: any) => {
-      if (g.categoryId && groups[g.categoryId]) {
-        groups[g.categoryId].goals.push(g);
-      } else {
-        groups[unknownCatId].goals.push(g);
-      }
+      const key = norm(g.categoryName);
+      if (key && groups[key]) groups[key].goals.push(g);
+      else groups[unknownKey].goals.push(g);
     });
 
     return Object.values(groups).filter(g => !g.category.isSystem || g.goals.length > 0);
@@ -266,7 +265,7 @@ function GoalAdminModal({ goal, categories, onClose, onSave }: any) {
     id: goal?.id || '',
     title: goal?.title || '',
     points: goal?.points || 10,
-    categoryId: goal?.categoryId || categories[0]?.id || '',
+    categoryName: goal?.categoryName || categories[0]?.name || '',
     description: goal?.description || ''
   });
 
@@ -291,15 +290,15 @@ function GoalAdminModal({ goal, categories, onClose, onSave }: any) {
             <div className="flex-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Category</label>
               <Select 
-                value={formData.categoryId} 
-                onValueChange={v => setFormData(p=>({...p, categoryId: v}))}
+                value={formData.categoryName} 
+                onValueChange={v => setFormData(p=>({...p, categoryName: v}))}
               >
                 <SelectTrigger className="bg-secondary/30 h-12 border-border font-bold text-sm rounded-xl w-full">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl shadow-soft border-border">
                   {categories.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id} className="font-medium">
+                    <SelectItem key={c.id} value={c.name} className="font-medium">
                       {c.name}
                     </SelectItem>
                   ))}
