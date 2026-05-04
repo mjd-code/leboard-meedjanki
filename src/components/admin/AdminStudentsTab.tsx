@@ -802,7 +802,7 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
           </Button>
         </div>
       </motion.div>
-      <CompletionAuditDialog
+      <CompletionAuditPanel
         isOpen={!!auditState}
         onClose={() => setAuditState(null)}
         studentId={formData.id || 'new'}
