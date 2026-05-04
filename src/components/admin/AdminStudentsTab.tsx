@@ -43,7 +43,7 @@ export interface CompletionAuditPayload {
   markedByAdminName: string | null;
 }
 
-interface CompletionAuditDialogProps {
+interface CompletionAuditPanelProps {
   isOpen: boolean;
   onClose: () => void;
   studentId: string;
@@ -52,14 +52,19 @@ interface CompletionAuditDialogProps {
   onSubmit: (payload: CompletionAuditPayload) => Promise<void> | void;
 }
 
-function CompletionAuditDialog({
+/**
+ * Inline audit panel — rendered as an overlay INSIDE <StudentAdminModal>.
+ * Deliberately NOT a Dialog: avoids the nested-modal anti-pattern by sliding
+ * over the modal's own content area instead of stacking another portal on top.
+ */
+function CompletionAuditPanel({
   isOpen,
   onClose,
   studentId,
   selectedGoalIds,
   existingData = null,
   onSubmit,
-}: CompletionAuditDialogProps) {
+}: CompletionAuditPanelProps) {
   const { user } = useAuthRole();
   const isBulk = selectedGoalIds.length > 1;
   const isEditing = Boolean(existingData?.id);
@@ -108,20 +113,36 @@ function CompletionAuditDialog({
     : 'Tandai Capaian';
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            {title}
-          </DialogTitle>
-          <DialogDescription>
-            Audit log untuk siswa <span className="font-mono text-xs">{studentId.slice(0, 8)}</span>.
-            Setiap perubahan tercatat untuk keperluan verifikasi.
-          </DialogDescription>
-        </DialogHeader>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="audit-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 z-20 bg-background/70 backdrop-blur-sm flex items-center justify-center p-6"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-card border border-border rounded-2xl shadow-soft p-6 space-y-4"
+          >
+            <div className="space-y-1.5">
+              <h3 className="flex items-center gap-2 text-base font-black text-foreground">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                {title}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Audit log untuk siswa <span className="font-mono">{studentId.slice(0, 8)}</span>.
+                Setiap perubahan tercatat untuk verifikasi.
+              </p>
+            </div>
 
-        <div className="space-y-4 py-2">
+            <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="completion-date">Tanggal Capaian</Label>
             <Popover>
@@ -165,22 +186,24 @@ function CompletionAuditDialog({
               rows={3}
             />
           </div>
-        </div>
+            </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={submitting}>Batal</Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-[hsl(45_93%_56%)] text-[hsl(150_60%_12%)] hover:bg-[hsl(45_93%_50%)] font-semibold"
-          >
-            {submitting ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</>
-            ) : isEditing ? 'Perbarui Capaian' : 'Simpan Capaian'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={onClose} disabled={submitting}>Batal</Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="bg-[hsl(45_93%_56%)] text-[hsl(150_60%_12%)] hover:bg-[hsl(45_93%_50%)] font-semibold"
+              >
+                {submitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan…</>
+                ) : isEditing ? 'Perbarui Capaian' : 'Simpan Capaian'}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
