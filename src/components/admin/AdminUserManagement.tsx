@@ -230,26 +230,26 @@ export function AdminUserManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Manajemen Pengguna</h2>
-          <p className="text-muted-foreground">Kelola akses dan tipe peran admin.</p>
+    <div className="space-y-8 p-2 md:p-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
+        <div className="space-y-2">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Manajemen Pengguna</h2>
+          <p className="text-muted-foreground text-sm">Kelola akses dan tipe peran admin.</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => openForm(null)} className="shadow-sm">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button onClick={() => openForm(null)} className="shadow-sm px-6 py-6 rounded-xl gap-2 w-full sm:w-auto">
+              <Plus className="w-4 h-4" />
               Tambah Admin
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingUser ? "Ubah Admin" : "Tambah Admin Baru"}</DialogTitle>
-              <DialogDescription className="hidden">Ubah atau tambah data administrator</DialogDescription>
+          <DialogContent className="sm:max-w-[480px] p-6 md:p-8">
+            <DialogHeader className="space-y-2 mb-2">
+              <DialogTitle className="text-xl">{editingUser ? "Ubah Admin" : "Tambah Admin Baru"}</DialogTitle>
+              <DialogDescription>Atur kredensial dan peran administrator.</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSave} className="space-y-4 pt-4">
+            <form onSubmit={handleSave} className="space-y-5 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -295,34 +295,34 @@ export function AdminUserManagement() {
                 </Select>
               </div>
               <div className="flex justify-end pt-4">
-                <Button type="submit" className="w-full sm:w-auto">Simpan</Button>
+                <Button type="submit" className="w-full sm:w-auto px-6">Simpan</Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nama</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Peran</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="px-6 py-4">Nama</TableHead>
+              <TableHead className="px-6 py-4">Email</TableHead>
+              <TableHead className="px-6 py-4">Peran</TableHead>
+              <TableHead className="px-6 py-4 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((u) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.full_name}</TableCell>
-                <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                <TableCell>
+                <TableCell className="font-medium px-6 py-4">{u.full_name}</TableCell>
+                <TableCell className="text-muted-foreground px-6 py-4">{u.email}</TableCell>
+                <TableCell className="px-6 py-4">
                   <Badge variant={u.role === "super_admin" ? "default" : "secondary"} className={u.role === "super_admin" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-blue-500 hover:bg-blue-600 text-white"}>
                     {u.role === "super_admin" ? "Super Admin" : "Admin"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right px-6 py-4">
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" size="icon" onClick={() => openForm(u)}>
                       <Pencil className="w-4 h-4" />
@@ -331,7 +331,7 @@ export function AdminUserManagement() {
                       variant="outline" 
                       size="icon" 
                       onClick={() => setDeleteConfirmId(u.id)}
-                      disabled={u.id === user?.id} // Cannot delete self
+                      disabled={u.id === user?.id}
                       className="text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -342,7 +342,7 @@ export function AdminUserManagement() {
             ))}
             {users.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
                   Belum ada data admin.
                 </TableCell>
               </TableRow>

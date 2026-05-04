@@ -169,8 +169,8 @@ export const PRESETS: Record<string, { name: string; light: ThemeVariant, dark: 
 export const applyThemeColors = (settings: any) => {
   if (!settings) return;
 
-  const presetId = settings.activePresetId || 'fresh_majestic';
-  const preset = PRESETS[presetId] || PRESETS['fresh_majestic'];
+  const presetId = settings.activePresetId || 'fresh_majestic_yellow';
+  const preset = PRESETS[presetId] || PRESETS['fresh_majestic_yellow'];
 
   let styleEl = document.getElementById('dynamic-theme');
   if (!styleEl) {
@@ -201,7 +201,7 @@ export function AdminAppearanceTab({ refreshData, appSettings, setAppSettings }:
     if (appSettings) {
       setSettings({
         ...appSettings,
-        activePresetId: appSettings.activePresetId || 'fresh_majestic'
+        activePresetId: appSettings.activePresetId || 'fresh_majestic_yellow'
       });
     }
   }, [JSON.stringify(appSettings)]);

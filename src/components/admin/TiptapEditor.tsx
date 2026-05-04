@@ -56,7 +56,7 @@ export function TiptapEditor({ content, onChange }: { content: string, onChange:
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4 bg-background text-foreground rounded-b-xl border-x border-b border-border'
+        class: 'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4 bg-background text-foreground rounded-b-xl border-x border-b border-border prose-headings:font-display prose-headings:font-bold prose-a:text-primary prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:italic prose-img:rounded-lg prose-img:mx-auto'
       }
     }
   });

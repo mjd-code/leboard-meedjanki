@@ -10,10 +10,10 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { apiFetch, removeLocalToken } from "@/lib/api";
 import { trackEvent, setAnalyticsAdminFlag } from "@/lib/analytics";
 import { ImageFallback } from "@/components/ImageFallback";
-import { FloatingActionContainer } from "@/components/ui/FloatingActionContainer";
 import { ScrollToTop } from "@/components/ui/ScrollToTop";
+import { FloatingSettingsFab } from "@/components/ui/FloatingSettingsFab";
 import { PwaDownloadPrompt } from "@/components/ui/PwaDownloadPrompt";
-import { Trophy, Settings, LogOut, LogIn, Loader2, Home, LayoutDashboard, Sun, Moon, Palette } from "lucide-react";
+import { Trophy, Settings, LogOut, Loader2, Newspaper, BarChart3, Sun, Moon } from "lucide-react";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,7 +43,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem("theme-preset") : null;
-    if (saved && PRESETS[saved]) setPresetOverride(saved);
+    if (saved && PRESETS[saved]) {
+      setPresetOverride(saved);
+    } else {
+      // Default to fresh_majestic (Green-Yellow) on first visit
+      setPresetOverride("fresh_majestic_yellow");
+      if (typeof window !== "undefined") localStorage.setItem("theme-preset", "fresh_majestic_yellow");
+    }
   }, []);
 
   useEffect(() => {
@@ -61,13 +67,18 @@ function AppContent({ children }: { children: React.ReactNode }) {
   }, [presetOverride, appSettings.activePresetId]);
 
   const activePresetName =
-    PRESETS[presetOverride || appSettings.activePresetId || "fresh_majestic"]?.name || "Theme";
+    PRESETS[presetOverride || appSettings.activePresetId || "fresh_majestic_yellow"]?.name || "Theme";
 
   const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme-mode") as "light" | "dark";
-    if (saved) setThemeMode(saved);
+    const saved = localStorage.getItem("theme-mode") as "light" | "dark" | null;
+    // Phase 1: Force dark on first visit, ignore OS preference
+    if (saved) {
+      setThemeMode(saved);
+    } else {
+      localStorage.setItem("theme-mode", "dark");
+    }
   }, []);
 
   useEffect(() => {
@@ -156,17 +167,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="flex items-center space-x-4">
-              <button onClick={toggleTheme} className="p-2 text-muted-foreground hover:text-foreground transition-colors hover:bg-secondary rounded-xl">
-                {themeMode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={cyclePreset}
-                title={`Theme preset: ${activePresetName} (klik untuk ganti)`}
-                aria-label="Cycle theme preset"
-                className="p-2 text-muted-foreground hover:text-foreground transition-colors hover:bg-secondary rounded-xl"
-              >
-                <Palette className="w-5 h-5" />
-              </button>
               <button onClick={() => router.push("/")} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${pathname === "/" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
                 Beranda
               </button>
@@ -177,29 +177,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
                 Leaderboard
               </button>
 
-              {isAdmin ? (
-                <>
-                  <button onClick={() => router.push("/admin")} className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all ${(pathname || "").startsWith("/admin") ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground hover:bg-secondary"}`}>
-                    <Settings className="h-4 w-4" /> Admin Panel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await apiFetch("/api/logout", { method: "POST" });
-                      removeLocalToken();
-                      queryClient.setQueryData(["auth"], { authenticated: false });
-                      trackEvent("admin_logout", { isAdmin: true });
-                      router.push("/");
-                    }}
-                    className="p-2 text-muted-foreground/60 hover:text-red-500 transition-colors"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => router.push("/login")} className="px-4 py-2 rounded-xl text-sm font-semibold text-primary hover:bg-primary/10 border border-primary/20 transition-all">
-                  Admin Login
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -214,49 +191,64 @@ function AppContent({ children }: { children: React.ReactNode }) {
         </ErrorBoundary>
       </main>
 
-      <FloatingActionContainer>
-        <button onClick={toggleTheme} className="md:hidden p-3 bg-secondary border border-border text-foreground transition-colors shadow-soft rounded-full z-50">
-          {themeMode === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
+      {/* Floating Settings FAB – bottom-right, below ScrollToTop */}
+      <FloatingSettingsFab
+        themeMode={themeMode}
+        toggleTheme={toggleTheme}
+        activePresetId={presetOverride || appSettings.activePresetId || "fresh_majestic_yellow"}
+        cyclePreset={cyclePreset}
+        activePresetName={activePresetName}
+        isAdmin={isAdmin}
+      />
+
+      {/* Scroll to top – bottom-right, above FAB (with breathing room) */}
+      <div className="fixed bottom-40 md:bottom-16 right-4 z-50">
         <ScrollToTop />
-      </FloatingActionContainer>
+      </div>
 
       <PwaDownloadPrompt />
 
-      {/* Bottom Mobile Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-8 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] flex justify-between items-center md:hidden z-50">
-        <button
-          onClick={() => {
-            if (navigator.vibrate) navigator.vibrate(50);
-            router.push("/");
-          }}
-          className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === "/" || (pathname || "").startsWith("/student") ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
-        >
-          <Home className="w-6 h-6" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Beranda</span>
-        </button>
+      {/* Mobile Bottom Nav – Leaderboard | Logo (absolute center) | Berita */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border pt-5 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden z-50">
+        {/* Logo – absolute center of screen */}
+        <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
+          {appSettings?.logoUrl ? (
+            <div className="w-20 h-20 rounded-full border border-border bg-card shadow-soft flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
+              <ImageFallback src={appSettings.logoUrl} alt="Logo" variant="logo" className="w-full h-full object-cover" wrapperClassName="w-full h-full" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-full border-4 border-border bg-card shadow-soft flex items-center justify-center text-primary cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
+              <Trophy className="w-8 h-8" />
+            </div>
+          )}
+        </div>
 
-        {appSettings?.logoUrl ? (
-          <div className="w-16 h-16 -mt-8 rounded-full border-4 border-border bg-card shadow-soft flex items-center justify-center overflow-hidden z-10 cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
-            <ImageFallback src={appSettings.logoUrl} alt="Logo" variant="logo" className="w-full h-full object-cover" wrapperClassName="w-full h-full" />
-          </div>
-        ) : (
-          <div className="w-16 h-16 -mt-8 rounded-full border-4 border-border bg-card shadow-soft flex items-center justify-center z-10 text-primary cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
-            <Trophy className="w-8 h-8" />
-          </div>
-        )}
+        <div className="flex justify-between items-center px-8">
+          <button
+            onClick={() => {
+              if (navigator.vibrate) navigator.vibrate(50);
+              router.push("/leaderboard");
+            }}
+            className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === "/leaderboard" ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
+          >
+            <BarChart3 className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Leaderboard</span>
+          </button>
 
-        <button
-          onClick={() => {
-            if (navigator.vibrate) navigator.vibrate(50);
-            if (isAdmin) router.push("/admin");
-            else router.push("/login");
-          }}
-          className={`flex flex-col items-center gap-1.5 transition-colors ${(pathname || "").startsWith("/admin") || pathname === "/login" ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
-        >
-          {isAdmin ? <LayoutDashboard className="w-6 h-6" /> : <LogIn className="w-6 h-6" />}
-          <span className="text-[10px] font-bold uppercase tracking-wider">{isAdmin ? "Admin" : "Masuk"}</span>
-        </button>
+          {/* Spacer for logo */}
+          <div className="w-16" />
+
+          <button
+            onClick={() => {
+              if (navigator.vibrate) navigator.vibrate(50);
+              router.push("/blog");
+            }}
+            className={`flex flex-col items-center gap-1.5 transition-colors ${(pathname || "").startsWith("/blog") || (pathname || "").startsWith("/berita") ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
+          >
+            <Newspaper className="w-6 h-6" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Berita</span>
+          </button>
+        </div>
       </nav>
     </div>
   );

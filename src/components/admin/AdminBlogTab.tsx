@@ -187,14 +187,17 @@ export function AdminBlogTab() {
 
   if (isEditing) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">{isEditing.id ? 'Ubah Artikel' : 'Tulis Artikel Baru'}</h2>
+      <div className="space-y-8 p-2 md:p-4">
+        <div className="flex items-center justify-between bg-card text-card-foreground p-6 md:p-8 rounded-2xl border border-border shadow-soft">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{isEditing.id ? 'Ubah Artikel' : 'Tulis Artikel Baru'}</h2>
+            <p className="text-sm text-muted-foreground mt-1.5">Isi detail artikel di kiri, atur metadata di kanan.</p>
+          </div>
           <Button variant="ghost" onClick={() => setIsEditing(null)}><X className="w-4 h-4 mr-2" /> Batal</Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft">
-            <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          <div className="lg:col-span-2 space-y-8 bg-card text-card-foreground p-6 md:p-8 rounded-2xl border border-border shadow-soft">
+            <div className="space-y-3">
               <label className="text-sm font-semibold">Judul Artikel</label>
               <Input
                 value={isEditing.title || ''}
@@ -207,7 +210,7 @@ export function AdminBlogTab() {
                 className="text-lg font-medium py-6"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-semibold">Konten</label>
               <TiptapEditor 
                 content={isEditing.content || ''} 
@@ -216,7 +219,7 @@ export function AdminBlogTab() {
             </div>
           </div>
           
-          <div className="space-y-6 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft h-fit">
+          <div className="space-y-6 bg-card text-card-foreground p-6 md:p-8 rounded-2xl border border-border shadow-soft h-fit lg:sticky lg:top-24">
             <div className="space-y-2">
               <label className="text-sm font-semibold">Status</label>
               <select 
@@ -400,18 +403,18 @@ export function AdminBlogTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card text-card-foreground p-6 rounded-2xl border border-border shadow-soft">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">PPMH Insight <Badge className="bg-primary/20 text-primary hover:bg-primary/30">CMS</Badge></h2>
-          <p className="text-muted-foreground mt-1 text-sm">Kelola artikel dan konten publikasi pesantren.</p>
+    <div className="space-y-8 p-2 md:p-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-card text-card-foreground p-6 md:p-8 rounded-2xl border border-border shadow-soft">
+        <div className="space-y-2">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">PPMH Insight <Badge className="bg-primary/20 text-primary hover:bg-primary/30">CMS</Badge></h2>
+          <p className="text-muted-foreground text-sm">Kelola artikel dan konten publikasi pesantren.</p>
         </div>
-        <Button onClick={() => setIsEditing({ status: 'draft' })} className="rounded-xl shadow-primary-glow font-bold gap-2 w-full sm:w-auto">
+        <Button onClick={() => setIsEditing({ status: 'draft' })} className="rounded-xl shadow-primary-glow font-bold gap-2 w-full sm:w-auto px-6 py-6">
           <Plus className="w-5 h-5" /> Tulis Artikel
         </Button>
       </div>
 
-      <div className="bg-card text-card-foreground rounded-2xl p-6 border border-border shadow-soft">
+      <div className="bg-card text-card-foreground rounded-2xl p-6 md:p-8 border border-border shadow-soft">
         <DataTable
           columns={columns}
           data={posts}

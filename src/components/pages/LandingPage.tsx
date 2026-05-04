@@ -134,12 +134,12 @@ export function LandingPage() {
             <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground mb-4 inline-flex items-center gap-2">
               <Activity className="w-3 h-3" /> {todayLabel()}
             </p>
-            <h1 className="font-display text-6xl md:text-8xl lg:text-9xl font-black text-foreground tracking-tight leading-[0.9]">
+            <h1 className="font-display text-5xl md:text-8xl lg:text-9xl font-black text-foreground tracking-tight leading-[0.9]">
               PPMH <span className="italic font-normal text-primary">Insight</span>
             </h1>
             <div className="mt-6 max-w-2xl mx-auto">
               <p className="font-serif-body italic text-lg md:text-xl text-foreground/70 leading-relaxed">
-                Pusat data, pencapaian santri, dan berita terkini Pondok Pesantren Miftahul Huda — disajikan dengan keterbukaan dan kejernihan.
+                Pusat data, pencapaian santri, dan berita terkini Pondok Pesantren Manbaul Huda — Ngambon, Girimoyo, Karangploso, Malang.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
@@ -147,7 +147,7 @@ export function LandingPage() {
                 <Trophy className="w-4 h-4 mr-2" /> Leaderboard
               </Link>
               <Link href="/blog" className="px-7 py-3 border-2 border-foreground text-foreground font-bold uppercase tracking-widest text-xs hover:bg-foreground hover:text-background transition-colors w-full sm:w-auto inline-flex justify-center items-center">
-                <BookOpen className="w-4 h-4 mr-2" /> Baca Insight
+                <BookOpen className="w-4 h-4 mr-2" /> Baca Berita
               </Link>
             </div>
           </motion.div>
@@ -175,13 +175,10 @@ export function LandingPage() {
       </section>
 
       {/* Berita Unggulan — horizontal rail */}
-      <section className="max-w-6xl mx-auto px-4 md:px-8 pt-12">
+      <section className="max-w-6xl mx-auto px-6 md:px-8 pt-10">
         <div className="flex items-end justify-between gap-4 mb-6">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground mb-2 inline-flex items-center gap-2">
-              <BookOpen className="w-3 h-3" /> Sekilas PPMH
-            </p>
-            <h2 className="font-display text-3xl md:text-5xl font-black text-foreground tracking-tight">
+            <h2 className="font-display text-2xl md:text-3xl font-black text-foreground tracking-tight">
               <Star className="w-6 h-6 text-primary inline mr-2" />
               {activeCat ? activeCat : 'Berita Unggulan'}
               {search && <span className="font-normal italic text-base text-muted-foreground ml-3">"{search}"</span>}
@@ -212,12 +209,12 @@ export function LandingPage() {
       </section>
 
       {/* Statistik PPMH — horizontal rail */}
-      <section className="max-w-6xl mx-auto px-4 md:px-8 pt-14">
-        <div className="flex items-center gap-4 text-xs uppercase tracking-[0.25em] font-bold text-muted-foreground mb-6">
+      <section className="max-w-6xl mx-auto px-4 md:px-8 pt-10">
+          <div className='flex justify-between mb-6'>
           <span className="text-foreground inline-flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-primary" /> Statistik PPMH
+            <Activity className="w-6 h-6 text-primary" />
+            <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">Statistik</h2>
           </span>
-          <span className="flex-1 editorial-rule" />
           <select 
             value={statsRange} 
             onChange={e => setStatsRange(e.target.value)}
@@ -229,6 +226,9 @@ export function LandingPage() {
             <option value="1y">Tahun Ini</option>
             <option value="all">All-Time</option>
           </select>
+          </div>
+        <div className="flex items-center gap-4 text-xs uppercase tracking-[0.25em] font-bold text-muted-foreground mb-6">
+          <span className="flex-1 editorial-rule" />
         </div>
 
         <HScroller ariaLabel="Statistik PPMH">
@@ -292,7 +292,7 @@ export function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 md:px-8 pt-14">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <Trophy className="w-5 h-5 text-yellow-500" />
+            <Trophy className="w-6 h-6 text-yellow-500" />
             <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">Top Santri</h2>
           </div>
           <Link href="/leaderboard" className="text-primary text-xs font-bold uppercase tracking-widest hover:underline inline-flex items-center">

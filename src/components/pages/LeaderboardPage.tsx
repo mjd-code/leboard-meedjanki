@@ -143,7 +143,7 @@ function LeaderboardPage({ students, masterGoals, calculateTotalPoints, navigate
         rank: 1, 
         height: 'h-[160px] md:h-[200px]', 
         avatarSize: 'h-24 w-24 md:h-32 md:w-32', 
-        border: 'border-yellow-400', 
+        border: 'border-yellow-400 border-2', 
         crown: <Crown className="w-8 h-8 md:w-10 md:h-10 text-yellow-500 absolute -top-6 left-1/2 -translate-x-1/2 drop-shadow-md z-20" />, 
         delay: 0,
         podiumColor: "from-primary/30 to-primary/10 border-primary/40",
@@ -152,7 +152,7 @@ function LeaderboardPage({ students, masterGoals, calculateTotalPoints, navigate
         rank: 2, 
         height: 'h-[120px] md:h-[140px]', 
         avatarSize: 'h-16 w-16 md:h-20 md:w-20', 
-        border: 'border-slate-300', 
+        border: 'border-slate-300 border-2', 
         crown: <Medal className="w-6 h-6 md:w-8 md:h-8 text-slate-400 absolute -top-4 left-1/2 -translate-x-1/2 drop-shadow-md z-20" />, 
         delay: 0.1,
         podiumColor: "from-secondary to-secondary/30 border-border",
@@ -161,7 +161,7 @@ function LeaderboardPage({ students, masterGoals, calculateTotalPoints, navigate
         rank: 3, 
         height: 'h-[100px] md:h-[120px]', 
         avatarSize: 'h-16 w-16 md:h-20 md:w-20', 
-        border: 'border-orange-400', 
+        border: 'border-orange-400 border-2', 
         crown: <Medal className="w-6 h-6 md:w-8 md:h-8 text-orange-500 absolute -top-4 left-1/2 -translate-x-1/2 drop-shadow-md z-20" />, 
         delay: 0.2,
         podiumColor: "from-secondary to-secondary/30 border-border",
@@ -236,7 +236,7 @@ function LeaderboardPage({ students, masterGoals, calculateTotalPoints, navigate
           
           {/* HORIZONTAL TIME FILTERS */}
           <div className="flex justify-center mt-6">
-            <div className="bg-secondary/30 backdrop-blur-md p-1.5 rounded-full flex items-center gap-1 overflow-x-auto no-scrollbar scrollbar-hide snap-x">
+            <div className="bg-secondary/30 backdrop-blur-md p-1.5 rounded-full grid grid-flow-col auto-cols-fr gap-1 w-full max-w-md">
                {TIME_RANGE_OPTIONS.map((opt) => (
                  <button 
                   key={opt.value} 
@@ -244,7 +244,7 @@ function LeaderboardPage({ students, masterGoals, calculateTotalPoints, navigate
                     setTimeFilter(opt.value);
                     trackEvent('leaderboard_filter', { metadata: { range: opt.value } });
                   }}
-                  className={`px-5 py-2 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider transition-all snap-center whitespace-nowrap active:scale-95 ${
+                  className={`px-2 py-2 rounded-full text-xs md:text-sm font-bold uppercase tracking-wider transition-all whitespace-nowrap text-center active:scale-95 ${
                     timeFilter === opt.value ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                   }`}
                  >

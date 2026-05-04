@@ -128,10 +128,10 @@ export function BlogListPage() {
             Edisi Digital · {todayLabel()}
           </p>
           <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-foreground leading-none tracking-tight">
-            PPMH <span className="italic font-normal">Insight</span>
+            PPMH <span className="italic font-normal text-primary">Insight</span>
           </h1>
           <p className="text-sm md:text-base text-muted-foreground mt-4 italic font-serif-body">
-            "Membangun generasi unggul melalui keterbukaan informasi."
+            Pusat data, pencapaian santri, dan berita terkini Pondok Pesantren Manbaul Huda — Ngambon, Girimoyo, Karangploso, Malang.
           </p>
         </header>
       </div>
@@ -173,7 +173,7 @@ export function BlogListPage() {
           <>
             {/* Newspaper Hero (only when no filter active — keep front-page magic) */}
             {!isFiltering && lead && (
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 pb-12 mb-12 border-b border-border">
+              <section className="hidden lg:grid-cols-3 gap-8 lg:gap-10 pb-12 mb-12 border-b border-border">
                 <article className="lg:col-span-2 group">
                   <Link href={`/blog/${lead.slug || lead.id}`} className="block">
                     <ImageWithFallback

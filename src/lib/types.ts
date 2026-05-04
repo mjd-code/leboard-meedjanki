@@ -28,6 +28,31 @@ export interface AssignedGoal {
   goalId: string;
   completed: boolean;
   completedAt?: string;
+  completionNote?: string | null;
+  markedByAdminId?: string | null;
+  markedByAdminName?: string | null;
+}
+
+/**
+ * Audit-grade junction record between a student and a goal.
+ * Stored in the flat `student_achievements` Firestore collection so it can be
+ * queried for leaderboards and exported to CSV without traversing
+ * subcollections.
+ */
+export interface StudentAchievement {
+  id: string;
+  studentId: string;
+  goalId: string;
+  /** Snapshot of goal points at completion time — safe for historical export. */
+  goalPoints: number;
+  status: "assigned" | "completed";
+  /** ISO date string; null while only assigned. */
+  completedAt: string | null;
+  markedByAdminId: string | null;
+  markedByAdminName: string | null;
+  completionNote: string | null;
+  /** ISO date string. */
+  assignedAt: string;
 }
 
 export interface Post {

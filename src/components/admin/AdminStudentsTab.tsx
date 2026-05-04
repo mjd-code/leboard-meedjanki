@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SimpleMenu } from '../ui/SimpleMenu';
 import { ArrowUpDown } from 'lucide-react';
+import { CompletionAuditDialog, type CompletionAuditPayload } from '../goals/CompletionAuditDialog';
 
 export function AdminStudentsTab({ students, refreshData, masterGoals, categories, calculateTotalPoints }: any) {
   const [searchFilter, setSearchFilter] = useState<StudentSearchFilterValue>(emptyStudentSearchFilter);
@@ -306,6 +307,12 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
   const isAssigned = (goalId: string) => formData.assignedGoals.some(ag => ag.goalId === goalId);
   const isCompleted = (goalId: string) => formData.assignedGoals.find(ag => ag.goalId === goalId)?.completed || false;
 
+  // Audit dialog state — single or bulk
+  const [auditState, setAuditState] = useState<{
+    goalIds: string[];
+    existing: any | null;
+  } | null>(null);
+
   const toggleAssignment = (goalId: string) => {
     setFormData(prev => {
       if (isAssigned(goalId)) {
@@ -318,10 +325,59 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
 
   const toggleCompletion = (goalId: string) => {
     if (!isAssigned(goalId)) return;
+    const ag = formData.assignedGoals.find(a => a.goalId === goalId);
+    if (ag?.completed) {
+      // Open dialog in EDIT mode for an already-completed goal
+      setAuditState({
+        goalIds: [goalId],
+        existing: {
+          id: goalId,
+          completedAt: ag.completedAt,
+          completionNote: (ag as any).completionNote ?? null,
+          markedByAdminId: (ag as any).markedByAdminId ?? null,
+          markedByAdminName: (ag as any).markedByAdminName ?? null,
+        },
+      });
+    } else {
+      // First-time completion — open audit dialog
+      setAuditState({ goalIds: [goalId], existing: null });
+    }
+  };
+
+  const unmarkCompletion = (goalId: string) => {
     setFormData(prev => ({
       ...prev,
-      assignedGoals: prev.assignedGoals.map(ag => ag.goalId === goalId ? { ...ag, completed: !ag.completed, completedAt: !ag.completed ? new Date().toISOString() : undefined } : ag)
+      assignedGoals: prev.assignedGoals.map(ag => ag.goalId === goalId
+        ? { ...ag, completed: false, completedAt: undefined, completionNote: null, markedByAdminId: null, markedByAdminName: null }
+        : ag),
     }));
+  };
+
+  const handleAuditSubmit = async (payload: CompletionAuditPayload) => {
+    if (!auditState) return;
+    const ids = new Set(auditState.goalIds);
+    setFormData(prev => {
+      const existingIds = new Set(prev.assignedGoals.map(ag => ag.goalId));
+      const merged = prev.assignedGoals.map(ag => ids.has(ag.goalId) ? {
+        ...ag,
+        completed: true,
+        completedAt: payload.completedAt,
+        completionNote: payload.completionNote,
+        markedByAdminId: payload.markedByAdminId,
+        markedByAdminName: payload.markedByAdminName,
+      } : ag);
+      const additions = Array.from(ids)
+        .filter(id => !existingIds.has(id))
+        .map(id => ({
+          goalId: id,
+          completed: true,
+          completedAt: payload.completedAt,
+          completionNote: payload.completionNote,
+          markedByAdminId: payload.markedByAdminId,
+          markedByAdminName: payload.markedByAdminName,
+        }));
+      return { ...prev, assignedGoals: [...merged, ...additions] };
+    });
   };
 
   const visibleGoalIds: string[] = displayedMasterGoals.map((mg: any) => mg.id);
@@ -533,9 +589,19 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
                           onClick={() => toggleCompletion(mg.id)}
                           disabled={!assigned}
                           className={`p-2 rounded-xl transition-all ${!assigned ? 'opacity-20' : completed ? 'bg-[var(--accent)] text-[var(--accent-foreground)]' : 'bg-secondary text-muted-foreground'}`}
+                          title={completed ? 'Edit audit log' : 'Tandai selesai'}
                         >
                           <CheckCircle2 className="w-5 h-5" />
                         </button>
+                        {completed && (
+                          <button
+                            onClick={() => unmarkCompletion(mg.id)}
+                            className="p-2 rounded-xl bg-secondary text-muted-foreground hover:text-destructive transition-all"
+                            title="Batalkan selesai"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -552,6 +618,14 @@ function StudentAdminModal({ student, masterGoals, categories, onClose, onSave }
           </Button>
         </div>
       </motion.div>
+      <CompletionAuditDialog
+        isOpen={!!auditState}
+        onClose={() => setAuditState(null)}
+        studentId={formData.id || 'new'}
+        selectedGoalIds={auditState?.goalIds || []}
+        existingData={auditState?.existing || null}
+        onSubmit={handleAuditSubmit}
+      />
     </div>
   );
 }
