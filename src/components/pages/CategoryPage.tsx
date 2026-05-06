@@ -2,27 +2,20 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Clock } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Clock, Star, Flame, TrendingUp, LayoutGrid } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import type { Post } from '@/lib/types';
 import { matchesCategorySlug, slugifyCategory } from '@/lib/categorySlug';
 import { CategoryChips } from '@/components/ui/CategoryChips';
-import { ArticleCard } from '@/components/ui/ArticleCard';
 import { SmartSearchBar, type SortKey } from '@/components/ui/SmartSearchBar';
 import { SimplePagination } from '@/components/ui/SimplePagination';
+import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
 function formatDate(d?: string | null) {
   return d
-    ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
+    ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })
     : '-';
-}
-
-function todayLabel() {
-  return new Date().toLocaleDateString('id-ID', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
 }
 
 const PAGE_SIZE = 9;
@@ -93,43 +86,42 @@ export function CategoryPage({ slug }: { slug: string }) {
   }, [inCategory, search, sort]);
 
   const isFiltering = !!search.trim() || sort !== 'newest';
-  const lead = !isFiltering ? filtered[0] : undefined;
-  const gridStart = lead ? 1 : 0;
-  const gridList = filtered.slice(gridStart);
+  const lead = filtered[0];
+  const popular = [...inCategory]
+    .sort((a, b) => (((b as any).views || 0) - ((a as any).views || 0)))
+    .slice(0, 5);
 
-  const totalPages = Math.max(1, Math.ceil(gridList.length / PAGE_SIZE));
+  let verticalList = filtered;
+  if (!isFiltering && lead) {
+    verticalList = filtered.slice(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(verticalList.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pageItems = gridList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageItems = verticalList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-8 md:pt-12">
-        <nav className="mb-6 flex items-center gap-3 text-sm uppercase tracking-widest font-semibold text-muted-foreground">
-          <Link href="/blog" className="inline-flex items-center hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" /> PPMH Insight
-          </Link>
-          <span className="text-foreground/30">/</span>
-          <Link href="/berita/kategori" className="hover:text-foreground transition-colors">
-            Kategori
-          </Link>
-        </nav>
-
-        <header className="text-center border-y-4 border-double border-foreground py-8 md:py-10 mb-6">
-          <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground mb-3">
-            Kategori · {todayLabel()}
-          </p>
-          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-foreground leading-none tracking-tight capitalize">
-            {categoryName}
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-4 italic font-serif-body">
-            {inCategory.length} artikel terbit dalam kategori ini.
-          </p>
-        </header>
-      </div>
-
-      {/* Sticky discovery bar */}
-      <div className="sticky top-0 z-30 bg-background/85 backdrop-blur-sm border-y border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-3">
+    <div className="min-h-[100dvh] bg-background pb-20 flex flex-col">
+      {/* 1. Header: Sticky Search Bar + Filter Chips */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="max-w-4xl mx-auto px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <Link
+              href="/blog"
+              className="inline-flex items-center text-foreground hover:text-primary transition-colors p-2 -ml-2 rounded-full"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <h1 className="font-display text-lg font-bold capitalize line-clamp-1">{categoryName}</h1>
+            <Link
+              href="/berita/kategori"
+              className="inline-flex items-center justify-center p-2 rounded-full hover:bg-muted/50 text-foreground transition-colors"
+              title="Indeks Kategori"
+            >
+              <LayoutGrid className="w-5 h-5" />
+            </Link>
+          </div>
+          
           <SmartSearchBar
             value={search}
             onChange={setSearch}
@@ -138,29 +130,35 @@ export function CategoryPage({ slug }: { slug: string }) {
             placeholder={`Cari di ${categoryName}…`}
             resultCount={isFiltering ? filtered.length : undefined}
           />
-          {/* Chip bar acts as quick navigation between categories */}
           {otherCategories.length > 0 && (
-            <CategoryChips
-              categories={otherCategories}
-              activeName={categoryName}
-              showAll
-              allLabel="Indeks"
-            />
+            <div className="overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <CategoryChips
+                categories={otherCategories}
+                activeName={categoryName}
+                showAll
+                allLabel="SEMUA"
+                className="flex-nowrap whitespace-nowrap"
+              />
+            </div>
           )}
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-10">
+      <div className="max-w-4xl mx-auto w-full pt-6 pb-12">
         {isLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 h-[420px] bg-muted/40 rounded-sm" />
-            <div className="space-y-6">
-              <div className="h-48 bg-muted/40 rounded-sm" />
-              <div className="h-48 bg-muted/40 rounded-sm" />
+          <div className="px-4 space-y-6">
+            <div className="h-[250px] bg-muted/40 animate-pulse rounded-2xl" />
+            <div className="flex gap-4 overflow-hidden">
+              <div className="min-w-[240px] h-32 bg-muted/40 animate-pulse rounded-xl" />
+              <div className="min-w-[240px] h-32 bg-muted/40 animate-pulse rounded-xl" />
+            </div>
+            <div className="space-y-4 pt-6">
+              <div className="h-24 bg-muted/40 animate-pulse rounded-xl" />
+              <div className="h-24 bg-muted/40 animate-pulse rounded-xl" />
             </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-20 text-center text-muted-foreground border border-dashed border-border">
+          <div className="py-20 text-center px-4 text-muted-foreground border border-dashed border-border mx-4 rounded-xl">
             <p className="font-serif-body italic">Belum ada artikel di kategori ini.</p>
             <Link
               href="/berita/kategori"
@@ -171,102 +169,123 @@ export function CategoryPage({ slug }: { slug: string }) {
           </div>
         ) : (
           <>
-            {/* Lead story (only when not filtering) */}
-            {lead && (
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 pb-12 mb-12 border-b border-border">
-                <article className="lg:col-span-2 group">
-                  <Link href={`/blog/${lead.slug || lead.id}`} className="block">
-                    {lead.featured_image ? (
-                      <div className="relative w-full aspect-[16/10] overflow-hidden mb-6 bg-muted">
-                        <Image
-                          src={lead.featured_image}
-                          alt={lead.title}
-                          fill
-                          referrerPolicy="no-referrer"
-                          className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full aspect-[16/10] bg-foreground/[0.03] flex items-center justify-center mb-6">
-                        <span className="font-display text-foreground/10 text-7xl font-black">PPMH</span>
-                      </div>
-                    )}
-                    <span className="inline-block text-[10px] uppercase tracking-[0.3em] font-bold text-primary mb-3">
-                      {lead.category}
-                    </span>
-                    <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-black text-foreground leading-[1.05] tracking-tight group-hover:text-primary transition-colors">
-                      {lead.title}
-                    </h2>
-                    {lead.excerpt && (
-                      <p className="font-serif-body text-lg text-foreground/75 mt-4 leading-relaxed line-clamp-3">
-                        {lead.excerpt}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground mt-5 font-semibold">
-                      <Clock className="w-3.5 h-3.5" />
-                      <time>{formatDate(lead.published_at)}</time>
-                    </div>
-                  </Link>
-                </article>
-
-                <aside className="lg:col-span-1 lg:border-l lg:border-border lg:pl-8 space-y-8 divide-y divide-border">
-                  {filtered.slice(1, 4).map((post, idx) => (
-                    <article key={post.id} className={`group ${idx > 0 ? 'pt-8' : ''}`}>
-                      <Link href={`/blog/${post.slug || post.id}`} className="block">
-                        {post.featured_image && (
-                          <div className="relative w-full aspect-[16/9] overflow-hidden mb-4 bg-muted">
-                            <Image
-                              src={post.featured_image}
-                              alt={post.title}
-                              fill
-                              referrerPolicy="no-referrer"
-                              className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                            />
-                          </div>
-                        )}
-                        <h3 className="font-display text-xl font-bold text-foreground leading-tight group-hover:text-primary transition-colors">
-                          {post.title}
-                        </h3>
-                      </Link>
-                    </article>
-                  ))}
-                </aside>
+            {/* 2. Dominasi Hero Card (Titik Awal) */}
+            {!isFiltering && lead && (
+              <section className="px-4 mb-8 group">
+                <Link href={`/blog/${lead.slug || lead.id}`} className="block">
+                  <ImageWithFallback
+                    src={lead.featured_image || null}
+                    alt={lead.title}
+                    fallbackType="gradient"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 800px"
+                    containerClassName="w-full aspect-video rounded-2xl overflow-hidden mb-4 bg-muted"
+                    className="transition-transform duration-700 md:group-hover:scale-[1.03]"
+                  />
+                  <span className="inline-block text-[10px] uppercase tracking-[0.3em] font-bold text-primary mb-2">
+                    {lead.category || categoryName}
+                  </span>
+                  <h2 className="font-display text-2xl md:text-4xl font-black text-foreground leading-tight tracking-tight">
+                    {lead.title}
+                  </h2>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3 font-medium">
+                    <Clock className="w-3.5 h-3.5" />
+                    <time>{formatDate(lead.published_at)}</time>
+                  </div>
+                </Link>
               </section>
             )}
 
-            <section>
-              <div className="flex items-center gap-4 text-xs uppercase tracking-[0.25em] font-bold text-muted-foreground mb-8">
-                <span className="text-foreground">
-                  {isFiltering ? 'Hasil' : `Lebih Banyak di ${categoryName}`}
-                </span>
-                <span className="flex-1 editorial-rule" />
-                <span>{gridList.length} artikel</span>
+            {/* 3. Horizontal Scroll List (Popular/Featured in Category) */}
+            {!isFiltering && popular.length > 0 && (
+              <section className="mb-10">
+                <div className="px-4 flex items-center gap-3 text-sm font-bold text-foreground mb-4">
+                  <Flame className="w-4 h-4 text-primary" /> Populer Kategori Ini
+                </div>
+                <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4 gap-4 pb-4">
+                  {popular.map((post) => (
+                    <Link
+                      key={post.id}
+                      href={`/blog/${post.slug || post.id}`}
+                      className="snap-start shrink-0 w-[75%] sm:w-64 flex flex-col group"
+                    >
+                      <ImageWithFallback
+                        src={post.featured_image || null}
+                        alt={post.title}
+                        fallbackType="gradient"
+                        fill
+                        sizes="300px"
+                        containerClassName="w-full aspect-[4/3] rounded-xl overflow-hidden mb-3"
+                        className="transition-transform duration-500 md:group-hover:scale-105"
+                      />
+                      <h3 className="font-display text-base font-bold text-foreground leading-snug line-clamp-2 md:group-hover:text-primary transition-colors">
+                        {post.title}
+                      </h3>
+                      <div className="flex items-center mt-auto pt-2 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                        <TrendingUp className="w-3 h-3 mr-1" /> {(post.organic_views || 0) + (post.offset_views || 0)} views
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 4. Vertical List View (Daftar Artikel Bawah) */}
+            <section className="px-4">
+              <div className="flex items-center gap-3 text-sm font-bold text-foreground mb-5">
+                <Star className="w-4 h-4 text-primary" />
+                {isFiltering ? 'Hasil Pencarian' : `Terbaru di ${categoryName}`}
               </div>
 
-              {pageItems.length === 0 ? (
-                <div className="py-16 text-center border border-dashed border-border">
+              {pageItems.length === 0 && isFiltering ? (
+                <div className="py-16 text-center border border-dashed border-border rounded-xl">
                   <p className="font-serif-body italic text-muted-foreground">
                     Tidak ada artikel yang cocok. Reset filter atau ubah kata kunci.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+                <div className="flex flex-col gap-5">
                   {pageItems.map((post) => (
-                    <ArticleCard key={post.id} post={post} showViews={sort === 'popular'} />
+                    <Link
+                      key={post.id}
+                      href={`/blog/${post.slug || post.id}`}
+                      className="flex gap-4 group items-center"
+                    >
+                      <ImageWithFallback
+                        src={post.featured_image || null}
+                        alt={post.title}
+                        fallbackType="gradient"
+                        fill
+                        sizes="100px"
+                        containerClassName="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-xl overflow-hidden"
+                        className="transition-transform duration-500 md:group-hover:scale-105"
+                      />
+                      <div className="flex-1 min-w-0 py-1">
+                        <h3 className="font-display text-base sm:text-lg font-bold text-foreground leading-tight line-clamp-3 md:group-hover:text-primary transition-colors">
+                          {post.title}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground mt-2">
+                          <Clock className="w-3 h-3" />
+                          <time>{formatDate(post.published_at)}</time>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               )}
 
-              <SimplePagination
-                page={currentPage}
-                totalPages={totalPages}
-                onChange={(p) => {
-                  setPage(p);
-                  if (typeof window !== 'undefined') {
-                    window.scrollTo({ top: 320, behavior: 'smooth' });
-                  }
-                }}
-              />
+              <div className="mt-10">
+                <SimplePagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  onChange={(p) => {
+                    setPage(p);
+                    if (typeof window !== 'undefined') {
+                      window.scrollTo({ top: 320, behavior: 'smooth' });
+                    }
+                  }}
+                />
+              </div>
             </section>
           </>
         )}
@@ -275,5 +294,4 @@ export function CategoryPage({ slug }: { slug: string }) {
   );
 }
 
-// Re-export to avoid unused import warnings if not consumed elsewhere.
 export { slugifyCategory };

@@ -1,5 +1,5 @@
 import { firebaseApiFetch } from './firebaseApi';
-import type { Category, MasterGoal, Student } from './types';
+import type { Category, MasterGoal, Student, Group } from './types';
 
 export const getLocalToken = () => {
   try {
@@ -82,7 +82,9 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     }
     if (res.status === 401) {
       removeLocalToken();
-      window.dispatchEvent(new Event('auth-expired'));
+      if (token) {
+        window.dispatchEvent(new Event('auth-expired'));
+      }
     }
     console.log(`[apiFetch] Finished ${url} with status ${res.status}`);
     return res;
@@ -93,11 +95,12 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
 
 export const fetchAppData = async () => {
   console.log("[fetchAppData] Starting fetches...");
-  const [catsRes, goalsRes, studentsRes, settingsRes] = await Promise.all([
+  const [catsRes, goalsRes, studentsRes, settingsRes, groupsRes] = await Promise.all([
     apiFetch('/api/categories').catch(e => { console.error("CATS ERR", e); return { ok: false }; }),
     apiFetch('/api/masterGoals').catch(e => { console.error("GOALS ERR", e); return { ok: false }; }),
     apiFetch('/api/students').catch(e => { console.error("STUDENTS ERR", e); return { ok: false }; }),
     apiFetch('/api/settings').catch(e => { console.error("SETTINGS ERR", e); return { ok: false }; }),
+    apiFetch('/api/groups').catch(e => { console.warn("GROUPS ERR (optional)", e); return { ok: false }; }),
   ]);
   
   console.log("[fetchAppData] Fetches completed.");
@@ -106,6 +109,7 @@ export const fetchAppData = async () => {
   const goals = goalsRes.ok ? await (goalsRes as Response).json() : [];
   const stus = studentsRes.ok ? await (studentsRes as Response).json() : [];
   let sets = settingsRes.ok ? await (settingsRes as Response).json() : {};
+  const grps = groupsRes && (groupsRes as any).ok ? await (groupsRes as Response).json() : [];
 
   if (!sets || Object.keys(sets).length === 0 || !sets.primaryColor) {
     sets = {
@@ -127,6 +131,7 @@ export const fetchAppData = async () => {
     categories: (Array.isArray(cats) ? cats : []) as Category[],
     masterGoals: (Array.isArray(goals) ? goals : []) as MasterGoal[],
     students: (Array.isArray(stus) ? stus : []) as Student[],
+    groups: (Array.isArray(grps) ? grps : []) as Group[],
     appSettings: sets
   };
 };

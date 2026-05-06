@@ -52,11 +52,19 @@ function BlockShell({
   children,
 }: { label: string; onDelete: () => void; children: React.ReactNode }) {
   return (
-    <NodeViewWrapper className="my-4">
-      <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm overflow-hidden">
+    <NodeViewWrapper className="group/block relative my-4 flex items-start gap-1">
+      <div
+        contentEditable={false}
+        data-drag-handle
+        className="node-drag-handle mt-3 shrink-0 w-5 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </div>
+      <div className="flex-1 min-w-0 rounded-xl border border-border bg-card text-card-foreground shadow-sm overflow-hidden">
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
-            <GripVertical className="w-3.5 h-3.5" /> {label}
+          <div className="text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+            {label}
           </div>
           <button
             type="button"
@@ -79,7 +87,7 @@ function BlockShell({
 
 type AccordionItem = { title: string; body: string };
 
-function AccordionView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+const AccordionView = React.memo(function AccordionView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   let items: AccordionItem[] = [];
   try {
     items = Array.isArray(node.attrs.items) 
@@ -126,7 +134,7 @@ function AccordionView({ node, updateAttributes, deleteNode }: NodeViewProps) {
       </div>
     </BlockShell>
   );
-}
+});
 
 export const AccordionBlock = Node.create({
   name: 'accordionBlock',
@@ -160,7 +168,7 @@ export const AccordionBlock = Node.create({
 
 type TabItem = { label: string; body: string };
 
-function TabsView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+const TabsView = React.memo(function TabsView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   let items: TabItem[] = [];
   try {
     items = Array.isArray(node.attrs.items) 
@@ -228,7 +236,7 @@ function TabsView({ node, updateAttributes, deleteNode }: NodeViewProps) {
       </div>
     </BlockShell>
   );
-}
+});
 
 export const TabsBlock = Node.create({
   name: 'tabsBlock',
@@ -260,7 +268,7 @@ export const TabsBlock = Node.create({
  * Simple Table
  * =====================================================================*/
 
-function SimpleTableView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+const SimpleTableView = React.memo(function SimpleTableView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const headers: string[] = node.attrs.headers || [];
   const rows: string[][] = node.attrs.rows || [];
 
@@ -338,7 +346,7 @@ function SimpleTableView({ node, updateAttributes, deleteNode }: NodeViewProps) 
       </div>
     </BlockShell>
   );
-}
+});
 
 export const SimpleTableBlock = Node.create({
   name: 'simpleTableBlock',
@@ -380,7 +388,7 @@ export const SimpleTableBlock = Node.create({
 
 type ImgItem = { src: string; alt?: string; caption?: string };
 
-function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+const ImageCarouselView = React.memo(function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   let items: ImgItem[] = [];
   try {
     items = Array.isArray(node.attrs.items) 
@@ -467,7 +475,7 @@ function ImageCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps
       </div>
     </BlockShell>
   );
-}
+});
 
 export const ImageCarouselBlock = Node.create({
   name: 'imageCarouselBlock',
@@ -501,7 +509,7 @@ export const ImageCarouselBlock = Node.create({
 
 type QuoteItem = { quote: string; attribution?: string };
 
-function QuoteCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+const QuoteCarouselView = React.memo(function QuoteCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   let items: QuoteItem[] = [];
   try {
     items = Array.isArray(node.attrs.items) 
@@ -546,7 +554,7 @@ function QuoteCarouselView({ node, updateAttributes, deleteNode }: NodeViewProps
       </div>
     </BlockShell>
   );
-}
+});
 
 export const QuoteCarouselBlock = Node.create({
   name: 'quoteCarouselBlock',

@@ -15,6 +15,7 @@ export default function StudentProfilePage() {
   const students = appData?.students || [];
   const masterGoals = appData?.masterGoals || [];
   const categories = appData?.categories || [];
+  const groups = (appData as any)?.groups || [];
 
   const calculateTotalPoints = useCallback((assignedGoals: AssignedGoal[]) => {
     if (!assignedGoals || !masterGoals) return 0;
@@ -47,6 +48,7 @@ export default function StudentProfilePage() {
       students={students} 
       masterGoals={masterGoals}
       categories={categories}
+      groups={groups}
       calculateTotalPoints={calculateTotalPoints}
       navigateTo={navigateTo}
     />

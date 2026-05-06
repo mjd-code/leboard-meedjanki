@@ -4,7 +4,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { applyThemeColors, PRESETS } from "@/components/admin/AdminAppearanceTab";
+import {
+  applyThemeColors,
+  PRESETS,
+} from "@/components/admin/AdminAppearanceTab";
 import { useAuthQuery, useAppDataQuery } from "@/hooks/useAppQueries";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { apiFetch, removeLocalToken } from "@/lib/api";
@@ -13,7 +16,16 @@ import { ImageFallback } from "@/components/ImageFallback";
 import { ScrollToTop } from "@/components/ui/ScrollToTop";
 import { FloatingSettingsFab } from "@/components/ui/FloatingSettingsFab";
 import { PwaDownloadPrompt } from "@/components/ui/PwaDownloadPrompt";
-import { Trophy, Settings, LogOut, Loader2, Newspaper, BarChart3, Sun, Moon } from "lucide-react";
+import {
+  Trophy,
+  Settings,
+  LogOut,
+  Loader2,
+  Newspaper,
+  BarChart3,
+  Sun,
+  Moon,
+} from "lucide-react";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -42,18 +54,25 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const [presetOverride, setPresetOverride] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? localStorage.getItem("theme-preset") : null;
+    const saved =
+      typeof window !== "undefined"
+        ? localStorage.getItem("theme-preset")
+        : null;
     if (saved && PRESETS[saved]) {
       setPresetOverride(saved);
     } else {
       // Default to fresh_majestic (Green-Yellow) on first visit
       setPresetOverride("fresh_majestic_yellow");
-      if (typeof window !== "undefined") localStorage.setItem("theme-preset", "fresh_majestic_yellow");
+      if (typeof window !== "undefined")
+        localStorage.setItem("theme-preset", "fresh_majestic_yellow");
     }
   }, []);
 
   useEffect(() => {
-    const merged = { ...appSettings, ...(presetOverride ? { activePresetId: presetOverride } : {}) };
+    const merged = {
+      ...appSettings,
+      ...(presetOverride ? { activePresetId: presetOverride } : {}),
+    };
     if (Object.keys(merged).length > 0) applyThemeColors(merged);
   }, [appSettings, presetOverride]);
 
@@ -67,7 +86,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
   }, [presetOverride, appSettings.activePresetId]);
 
   const activePresetName =
-    PRESETS[presetOverride || appSettings.activePresetId || "fresh_majestic_yellow"]?.name || "Theme";
+    PRESETS[
+      presetOverride || appSettings.activePresetId || "fresh_majestic_yellow"
+    ]?.name || "Theme";
 
   const [themeMode, setThemeMode] = useState<"light" | "dark">("dark");
 
@@ -90,10 +111,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
     localStorage.setItem("theme-mode", themeMode);
   }, [themeMode]);
 
-  const toggleTheme = () => setThemeMode((prev) => (prev === "light" ? "dark" : "light"));
+  const toggleTheme = () =>
+    setThemeMode((prev) => (prev === "light" ? "dark" : "light"));
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && !localStorage.getItem("vite_sw_cleared_v2")) {
+    if (
+      "serviceWorker" in navigator &&
+      !localStorage.getItem("vite_sw_cleared_v2")
+    ) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         let cleared = false;
         for (const registration of registrations) {
@@ -144,40 +169,56 @@ function AppContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <p className="text-primary font-bold tracking-widest uppercase text-xs">Memuat Aplikasi...</p>
+        <p className="text-primary font-bold tracking-widest uppercase text-xs">
+          Memuat Aplikasi...
+        </p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col pb-20 md:pb-0">
-      {/* Navbar Global */}
-      <nav className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-40 shadow-soft hidden md:block">
+      {/* Navbar Global – Leaderboard | Logo (center) | Berita */}
+      <nav className="bg-background border-b border-border sticky top-0 z-40 shadow-soft hidden md:block">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => router.push("/")}>
+          <div className="relative flex justify-between items-center h-20">
+            {/* Left: Leaderboard */}
+            <button
+              onClick={() => router.push("/leaderboard")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${pathname === "/leaderboard" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}
+            >
+              <BarChart3 className="w-5 h-5" />
+              Peringkat
+            </button>
+
+            {/* Center: Logo (absolute center) */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 cursor-pointer group bg-background border rounded-full mt-10"
+              onClick={() => router.push("/")}
+            >
               {appSettings.logoUrl ? (
-                <ImageFallback src={appSettings.logoUrl} alt="Logo" variant="logo" className="h-10 w-10 object-contain rounded-xl" wrapperClassName="h-10 w-10" />
+                <ImageFallback
+                  src={appSettings.logoUrl}
+                  alt="Logo"
+                  variant="logo"
+                  className="h-22 w-22 object-contain rounded-xl"
+                  wrapperClassName="h-22 w-22"
+                />
               ) : (
                 <div className="bg-primary p-2 rounded-xl group-hover:rotate-6 transition-transform">
                   <Trophy className="h-6 w-6 text-primary-foreground" />
                 </div>
               )}
-              <span className="font-bold text-xl tracking-tight text-foreground">{appSettings.appName || "PPMH"}</span>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <button onClick={() => router.push("/")} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${pathname === "/" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-                Beranda
-              </button>
-              <button onClick={() => router.push("/blog")} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${(pathname || "").startsWith("/blog") || (pathname || "").startsWith("/berita") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-                Berita
-              </button>
-              <button onClick={() => router.push("/leaderboard")} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${pathname === "/leaderboard" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}>
-                Leaderboard
-              </button>
-
-            </div>
+            {/* Right: Berita */}
+            <button
+              onClick={() => router.push("/blog")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${(pathname || "").startsWith("/blog") || (pathname || "").startsWith("/berita") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"}`}
+            >
+              <Newspaper className="w-5 h-5" />
+              Berita
+            </button>
           </div>
         </div>
       </nav>
@@ -185,9 +226,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 overflow-x-hidden">
         <ErrorBoundary>
-          <div key={pathname}>
-            {children}
-          </div>
+          <div key={pathname}>{children}</div>
         </ErrorBoundary>
       </main>
 
@@ -195,14 +234,18 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <FloatingSettingsFab
         themeMode={themeMode}
         toggleTheme={toggleTheme}
-        activePresetId={presetOverride || appSettings.activePresetId || "fresh_majestic_yellow"}
+        activePresetId={
+          presetOverride ||
+          appSettings.activePresetId ||
+          "fresh_majestic_yellow"
+        }
         cyclePreset={cyclePreset}
         activePresetName={activePresetName}
         isAdmin={isAdmin}
       />
 
       {/* Scroll to top – bottom-right, above FAB (with breathing room) */}
-      <div className="fixed bottom-40 md:bottom-16 right-4 z-50">
+      <div className="fixed bottom-40 md:bottom-18 right-4 z-50">
         <ScrollToTop />
       </div>
 
@@ -213,11 +256,23 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* Logo – absolute center of screen */}
         <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
           {appSettings?.logoUrl ? (
-            <div className="w-20 h-20 rounded-full border border-border bg-card shadow-soft flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
-              <ImageFallback src={appSettings.logoUrl} alt="Logo" variant="logo" className="w-full h-full object-cover" wrapperClassName="w-full h-full" />
+            <div
+              className="w-20 h-20 rounded-full border border-border bg-card shadow-soft flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => router.push("/")}
+            >
+              <ImageFallback
+                src={appSettings.logoUrl}
+                alt="Logo"
+                variant="logo"
+                className="w-full h-full object-cover"
+                wrapperClassName="w-full h-full"
+              />
             </div>
           ) : (
-            <div className="w-16 h-16 rounded-full border-4 border-border bg-card shadow-soft flex items-center justify-center text-primary cursor-pointer active:scale-95 transition-transform" onClick={() => router.push("/")}>
+            <div
+              className="w-16 h-16 rounded-full border-4 border-border bg-card shadow-soft flex items-center justify-center text-primary cursor-pointer active:scale-95 transition-transform"
+              onClick={() => router.push("/")}
+            >
               <Trophy className="w-8 h-8" />
             </div>
           )}
@@ -232,7 +287,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
             className={`flex flex-col items-center gap-1.5 transition-colors ${pathname === "/leaderboard" ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
           >
             <BarChart3 className="w-6 h-6" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Leaderboard</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Peringkat
+            </span>
           </button>
 
           {/* Spacer for logo */}
@@ -246,7 +303,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
             className={`flex flex-col items-center gap-1.5 transition-colors ${(pathname || "").startsWith("/blog") || (pathname || "").startsWith("/berita") ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"}`}
           >
             <Newspaper className="w-6 h-6" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Berita</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Berita
+            </span>
           </button>
         </div>
       </nav>

@@ -80,19 +80,18 @@ export function BlogPostPage({ slug }: { slug: string }) {
     };
   }, []);
 
-  // Related posts (same category, exclude current). Fallback to most recent.
+  // Related posts (strict same category, exclude current, sort by popularity)
   const related = React.useMemo(() => {
     if (!post) return [];
     const others = allPosts.filter((p) => p.id !== post.id);
     const sameCat = others.filter((p) => (p.category || '') === (post.category || ''));
-    const pool = sameCat.length >= 3 ? sameCat : [...sameCat, ...others.filter((p) => !sameCat.includes(p))];
-    return pool
-      .sort((a, b) => (b.published_at || '').localeCompare(a.published_at || ''))
-      .slice(0, 3);
+    return sameCat
+      .sort((a, b) => ((b.organic_views || 0) + (b.offset_views || 0)) - ((a.organic_views || 0) + (a.offset_views || 0)))
+      .slice(0, 5);
   }, [post, allPosts]);
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-[100dvh] bg-background pb-20 flex flex-col">
       {/* Reading progress bar */}
       <div
         role="progressbar"
@@ -126,145 +125,178 @@ export function BlogPostPage({ slug }: { slug: string }) {
         />
       )}
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-12">
-        <nav className="mb-8">
-          <Link href="/blog" className="inline-flex items-center text-foreground/70 font-semibold hover:text-foreground transition-colors text-sm uppercase tracking-widest">
-            <ArrowLeft className="w-4 h-4 mr-2" /> PPMH Insight
-          </Link>
-        </nav>
+      {/* Main Header Area */}
+      <header className="pt-6 sm:pt-10 px-4 max-w-4xl mx-auto w-full">
+        <Link
+          href="/blog"
+          className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-8 pb-1 border-b border-transparent hover:border-foreground"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Kembali
+        </Link>
 
         {isLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-3 bg-muted/60 w-32" />
-            <div className="h-12 bg-muted/60 w-full" />
-            <div className="h-12 bg-muted/60 w-3/4" />
-            <div className="h-4 bg-muted/60 w-1/3 mt-6" />
+          <div className="space-y-6 animate-pulse mt-4">
+            <div className="h-4 bg-muted/60 w-32 rounded-full" />
+            <div className="h-10 sm:h-14 bg-muted/60 w-full rounded-lg" />
+            <div className="h-10 sm:h-14 bg-muted/60 w-3/4 rounded-lg" />
+            <div className="flex gap-4 mt-8">
+              <div className="h-8 bg-muted/60 w-20 rounded-full" />
+              <div className="h-8 bg-muted/60 w-24 rounded-full" />
+            </div>
+            <div className="h-[300px] bg-muted/60 w-full mt-8 rounded-2xl" />
           </div>
         ) : !post ? (
-          <div className="text-center py-24 border border-dashed border-border">
-            <h2 className="font-display text-3xl font-bold mb-2">Artikel tidak ditemukan</h2>
-            <p className="text-muted-foreground font-serif-body italic">Mungkin artikel telah dipindahkan atau dihapus.</p>
+          <div className="text-center py-24 border border-dashed border-border rounded-2xl mt-4">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">Artikel tidak ditemukan</h2>
+            <p className="text-muted-foreground font-serif-body italic text-sm sm:text-base">Mungkin artikel telah dipindahkan atau dihapus.</p>
           </div>
         ) : (
-          <article>
-            {/* Category eyebrow */}
-            {post.category && (
-              <div className="text-center mb-5">
-                <span className="inline-block text-[11px] uppercase tracking-[0.4em] font-bold text-primary border-y border-primary py-1.5 px-4">
+          <article className="mt-2">
+            {/* Meta Tags / Category */}
+            <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6">
+              {post.category && (
+                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest">
                   {post.category}
                 </span>
-              </div>
-            )}
-
-            {/* Headline */}
-            <header className="text-center max-w-3xl mx-auto mb-6">
-              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-foreground leading-[1.05] tracking-tight">
-                {post.title}
-              </h1>
-              {post.excerpt && (
-                <p className="font-serif-body italic text-lg md:text-xl text-foreground/70 mt-5 leading-relaxed">
-                  {post.excerpt}
-                </p>
               )}
-            </header>
-
-            {/* Byline */}
-            <div className="flex items-center justify-center gap-6 text-xs uppercase tracking-widest text-muted-foreground font-semibold border-y border-border py-4 mb-10">
-              {(post.author_id || (post as any).author) && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <User className="w-3.5 h-3.5" />
-                    <span>{(post as any).author || post.author_id}</span>
-                  </div>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                </>
-              )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
                 <CalendarDays className="w-3.5 h-3.5" />
                 <time dateTime={post.published_at || ''}>{formatDate(post.published_at)}</time>
               </div>
-              <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{readingTime(post.content)}</span>
-              </div>
-              <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-              <div className="flex items-center gap-2" title="Total Views">
-                <Eye className="w-3.5 h-3.5" />
-                <span>{(post.organic_views || 0) + (post.offset_views || 0)}</span>
+              <span className="text-muted-foreground/30 text-[10px] sm:text-xs hidden sm:inline">•</span>
+              <div className="flex gap-4 sm:gap-4 ml-auto sm:ml-0">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{readingTime(post.content)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium" title="Total Views">
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{(post.organic_views || 0) + (post.offset_views || 0)} views</span>
+                </div>
               </div>
             </div>
 
-            {/* Featured image */}
+            {/* Title & Excerpt */}
+            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-foreground leading-[1.1] tracking-tight text-pretty">
+              {post.title}
+            </h1>
+            {post.excerpt && (
+              <p className="font-serif-body italic text-base sm:text-lg md:text-xl text-muted-foreground mt-6 leading-relaxed">
+                {post.excerpt}
+              </p>
+            )}
+
+            {/* Author */}
+            {(post.author_id || (post as any).author) && (
+              <div className="flex items-center gap-3 mt-8 pb-8 border-b border-border/40">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">Penulis</div>
+                  <div className="text-sm font-semibold text-foreground">{(post as any).author || post.author_id}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Featured Image */}
             {post.featured_image && (
-              <figure className="mb-12 -mx-4 sm:mx-0">
+              <figure className="my-8 sm:my-12 -mx-4 sm:mx-0">
                 <ImageWithFallback 
                   src={post.featured_image || null} 
                   alt={post.title} 
                   fallbackType="gradient"
                   fill 
                   priority
-                  containerClassName="w-full aspect-[16/9]"
+                  sizes="(max-width: 1024px) 100vw, 800px"
+                  containerClassName="w-full aspect-[4/3] sm:aspect-[16/9] sm:rounded-3xl shadow-sm"
                 />
-                <figcaption className="text-xs text-muted-foreground italic font-serif-body text-center mt-3 px-4">
-                  {post.title}
-                </figcaption>
               </figure>
             )}
 
-            {/* Body — drop cap, serif body */}
-            <BlogContent
-              html={post.content}
-              className="dropcap font-serif-body text-foreground/90 prose prose-lg max-w-none
-                         prose-headings:font-display prose-headings:font-bold prose-headings:text-foreground
-                         prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-4
-                         prose-h3:text-2xl
-                         prose-p:leading-[1.85] prose-p:text-[1.075rem]
-                         prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                         prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:font-display prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:text-foreground
-                         prose-img:rounded-none prose-img:mx-auto"
-            />
+            {/* Content Body */}
+            <div className="px-0 sm:px-4 md:px-8 max-w-[800px] mx-auto">
+              <BlogContent
+                html={post.content}
+                className="dropcap font-serif-body text-foreground/90 prose prose-base sm:prose-lg max-w-none
+                           prose-headings:font-display prose-headings:font-bold prose-headings:text-foreground
+                           prose-p:leading-[1.8] prose-p:text-[1.05rem] sm:prose-p:text-[1.125rem]
+                           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                           prose-img:rounded-2xl prose-img:mx-auto prose-img:w-full prose-img:shadow-sm
+                           [&_p]:my-6
+                           [&_h1]:text-3xl sm:[&_h1]:text-4xl [&_h1]:mt-14 [&_h1]:mb-6 [&_h1]:font-black
+                           [&_h2]:text-2xl sm:[&_h2]:text-3xl [&_h2]:mt-12 [&_h2]:mb-5 [&_h2]:font-bold
+                           [&_h3]:text-xl sm:[&_h3]:text-2xl [&_h3]:mt-10 [&_h3]:mb-4
+                           [&_h4]:text-lg sm:[&_h4]:text-xl [&_h4]:mt-8 [&_h4]:mb-3
+                           [&_ul]:list-disc [&_ul]:pl-5 sm:[&_ul]:pl-6 [&_ul]:my-6 [&_ul_li]:my-2
+                           [&_ol]:list-decimal [&_ol]:pl-5 sm:[&_ol]:pl-6 [&_ol]:my-6 [&_ol_li]:my-2
+                           [&_blockquote]:my-8 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/60 [&_blockquote]:bg-primary/5 [&_blockquote]:py-3 [&_blockquote]:pr-4 [&_blockquote]:pl-5 sm:[&_blockquote]:pl-6 [&_blockquote]:italic [&_blockquote]:rounded-r-xl
+                           [&_pre]:my-8 [&_pre]:bg-[#18181b] [&_pre]:text-gray-100 [&_pre]:p-5 sm:[&_pre]:p-6 [&_pre]:rounded-2xl [&_pre]:overflow-x-auto [&_pre]:text-sm sm:[&_pre]:text-base
+                           [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded text-foreground [&_code]:font-mono [&_code]:text-[0.9em]
+                           [&_hr]:my-12 [&_hr]:border-border/60"
+              />
+            </div>
 
             {/* End mark */}
-            <div className="text-center mt-16 mb-8">
-              <span className="inline-block w-2 h-2 bg-foreground rotate-45" />
+            <div className="text-center mt-16 mb-10">
+              <span className="inline-block w-2 h-2 bg-primary rotate-45 rounded-sm" />
             </div>
 
-            <div className="text-center">
-              <Link href="/blog" className="inline-flex items-center text-foreground font-semibold uppercase tracking-widest text-xs border-b border-foreground pb-1 hover:text-primary hover:border-primary transition-colors">
-                Kembali ke PPMH Insight
-              </Link>
-            </div>
-
-            {/* Related Posts */}
+            {/* Suggestions / Related Posts */}
             {related.length > 0 && (
-              <aside className="mt-20 pt-10 border-t border-border" aria-label="Saran postingan lain">
-                <div className="flex items-end justify-between gap-4 mb-6">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground mb-2">
-                      Lanjutkan Membaca
-                    </p>
-                    <h2 className="font-display text-2xl md:text-3xl font-black text-foreground">
-                      Saran Postingan Lain
-                    </h2>
+              <aside className="mt-16 sm:mt-24 pt-12 border-t border-border/40" aria-label="Saran postingan lain">
+                <div className="flex items-center justify-between gap-4 mb-8">
+                  <div className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-widest">
+                    <ArrowRight className="w-4 h-4 text-primary" /> Lanjutkan Membaca
                   </div>
-                  <Link href="/blog" className="hidden sm:inline-flex items-center text-foreground font-bold uppercase tracking-widest text-xs border-b border-foreground hover:text-primary hover:border-primary pb-1">
-                    Semua Artikel <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  <Link href="/blog" className="text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:underline">
+                    Semua Artikel
                   </Link>
                 </div>
 
-                <HScroller ariaLabel="Saran postingan lain">
+                <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 gap-5 pb-4">
                   {related.map((rp) => (
-                    <HScrollItem key={rp.id}>
-                      <ArticleCard post={rp} />
-                    </HScrollItem>
+                    <Link
+                      key={rp.id}
+                      href={`/blog/${rp.slug || rp.id}`}
+                      className="snap-start shrink-0 w-[240px] sm:w-[320px] flex flex-col group"
+                    >
+                      <ImageWithFallback
+                        src={rp.featured_image || null}
+                        alt={rp.title}
+                        fallbackType="gradient"
+                        fill
+                        sizes="320px"
+                        containerClassName="w-full aspect-[16/10] sm:aspect-video rounded-2xl overflow-hidden mb-4 shadow-sm"
+                        className="transition-transform duration-500 md:group-hover:scale-105"
+                      />
+                      <div className="flex items-center gap-2 mb-2">
+                        {rp.category && (
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-primary">
+                            {rp.category}
+                          </span>
+                        )}
+                        <span className="text-muted-foreground/30 text-[10px]">•</span>
+                        <div className="flex items-center text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                          <Eye className="w-3 h-3 mr-1" /> {(rp.organic_views || 0) + (rp.offset_views || 0)} views
+                        </div>
+                      </div>
+                      <h3 className="font-display text-base sm:text-lg font-bold text-foreground leading-snug line-clamp-2 md:line-clamp-3 group-hover:text-primary transition-colors text-pretty">
+                        {rp.title}
+                      </h3>
+                      {rp.excerpt && (
+                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed hidden sm:block">
+                          {rp.excerpt}
+                        </p>
+                      )}
+                    </Link>
                   ))}
-                </HScroller>
+                </div>
               </aside>
             )}
           </article>
         )}
-      </div>
+      </header>
     </div>
   );
 }

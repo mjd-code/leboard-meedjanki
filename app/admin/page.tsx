@@ -21,6 +21,7 @@ export default function AdminPage() {
   const students = appData?.students || [];
   const masterGoals = appData?.masterGoals || [];
   const categories = appData?.categories || [];
+  const groups = (appData as any)?.groups || [];
   const appSettings = appData?.appSettings || {};
 
   const calculateTotalPoints = useCallback((assignedGoals: AssignedGoal[]) => {
@@ -69,6 +70,7 @@ export default function AdminPage() {
       refreshData={refreshData}
       masterGoals={masterGoals} 
       categories={categories} 
+      groups={groups}
       calculateTotalPoints={calculateTotalPoints}
       appSettings={appSettings}
       setAppSettings={() => queryClient.invalidateQueries({ queryKey: ["app-data"] })} 

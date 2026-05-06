@@ -14,14 +14,33 @@ export interface AdminUser {
 export interface Category {
   id: string;
   name: string;
+  /** Parent Group id (new in 3-tier hierarchy). Optional for backwards compat. */
+  groupId?: string;
+  /** Manual ascending sort index within its Group. */
+  order?: number;
 }
 
 export interface MasterGoal {
   id: string;
+  /** Canonical FK to Category. `categoryName` is kept as a denormalized snapshot. */
+  categoryId?: string;
   categoryName: string;
   title: string;
   points: number;
   description: string;
+  /** Manual ascending sort index within its Category. */
+  order?: number;
+}
+
+/**
+ * Top-level grouping above Categories (e.g. "Kelas 1").
+ * A Group has many Categories; a Category has many MasterGoals.
+ */
+export interface Group {
+  id: string;
+  name: string;
+  order: number;
+  isSystem?: boolean;
 }
 
 export interface AssignedGoal {
