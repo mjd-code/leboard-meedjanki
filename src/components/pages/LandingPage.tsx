@@ -173,7 +173,7 @@ export function LandingPage() {
   const topStudents = sortedStudents.slice(0, 8);
 
   // Stats Hook
-  const [statsRange, setStatsRange] = React.useState("all");
+  const [statsRange, setStatsRange] = React.useState("today");
   const { data: analytics } = useQuery({
     queryKey: ["public-analytics", statsRange],
     queryFn: async () => {
@@ -234,16 +234,32 @@ export function LandingPage() {
     },
   ];
 
-  // Mock trends
-  const trendData = [
-    { name: "Sen", aktif: 40 },
-    { name: "Sel", aktif: 30 },
-    { name: "Rab", aktif: 20 },
-    { name: "Kam", aktif: 27 },
-    { name: "Jum", aktif: 18 },
-    { name: "Sab", aktif: 23 },
-    { name: "Min", aktif: 34 },
-  ];
+  // Real 7-day activity trend derived from students' completed goals
+  const trendData = React.useMemo(() => {
+    const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const buckets: { key: string; name: string; aktif: number }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      buckets.push({
+        key: d.toISOString().split("T")[0],
+        name: dayNames[d.getDay()],
+        aktif: 0,
+      });
+    }
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
+    students.forEach((s: any) => {
+      (s.assignedGoals || s.assigned_goals || []).forEach((g: any) => {
+        if (!g.completed || !g.completedAt) return;
+        const key = String(g.completedAt).split("T")[0];
+        const i = idx.get(key);
+        if (i !== undefined) buckets[i].aktif += 1;
+      });
+    });
+    return buckets.map(({ name, aktif }) => ({ name, aktif }));
+  }, [students]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
