@@ -83,9 +83,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { PopoverSelect } from "@/components/ui/PopoverSelect";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useAuthRole } from "@/hooks/useAuthRole";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check, Layers } from "lucide-react";
 import type { StudentAchievement } from "@/lib/types";
 import {
   buildHierarchy,
