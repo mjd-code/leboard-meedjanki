@@ -677,10 +677,16 @@ function StudentAdminModal({
     assignedGoals: student?.assignedGoals ? [...student.assignedGoals] : [],
   });
 
-  const [filterCat, setFilterCat] = useState("ALL");
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const [tagInput, setTagInput] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState<{
+    kind: "assign" | "unassign" | "complete" | "uncomplete";
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const addTag = () => {
     if (tagInput.trim() !== "" && !formData.tags?.includes(tagInput.trim())) {
@@ -699,27 +705,41 @@ function StudentAdminModal({
     }));
   };
 
-  // Build the 3-tier tree once, then optionally narrow by selected category.
+  // Build the 3-tier tree once. The modal flattens it via group + category pickers.
   const tree = useMemo(
     () => buildHierarchy(groups || [], categories, masterGoals),
     [groups, categories, masterGoals],
   );
-  const filteredTree = useMemo(() => {
-    if (filterCat === "ALL") return tree;
-    const wanted = String(filterCat).toLowerCase();
-    return tree
-      .map((node) => ({
-        ...node,
-        categories: node.categories.filter(
-          (c) => (c.category.name || "").toLowerCase() === wanted,
-        ),
-      }))
-      .filter((n) => n.categories.length > 0);
-  }, [tree, filterCat]);
+  // Auto-select first group/category when data arrives or current selection invalidates.
+  const activeGroupNode = useMemo(() => {
+    if (!tree.length) return null;
+    return tree.find((n) => n.group.id === selectedGroupId) ?? tree[0];
+  }, [tree, selectedGroupId]);
+  useEffect(() => {
+    if (activeGroupNode && activeGroupNode.group.id !== selectedGroupId) {
+      setSelectedGroupId(activeGroupNode.group.id);
+    }
+  }, [activeGroupNode, selectedGroupId]);
+  const activeCategories = activeGroupNode?.categories ?? [];
+  const activeCategoryNode = useMemo(() => {
+    if (!activeCategories.length) return null;
+    return (
+      activeCategories.find((c) => c.category.id === selectedCategoryId) ??
+      activeCategories[0]
+    );
+  }, [activeCategories, selectedCategoryId]);
+  useEffect(() => {
+    if (
+      activeCategoryNode &&
+      activeCategoryNode.category.id !== selectedCategoryId
+    ) {
+      setSelectedCategoryId(activeCategoryNode.category.id);
+    }
+  }, [activeCategoryNode, selectedCategoryId]);
   // Flat list of goals visible after filter — drives bulk-action helpers below.
   const displayedMasterGoals: MasterGoal[] = useMemo(
-    () => filteredTree.flatMap((n) => n.categories.flatMap((c) => c.goals)),
-    [filteredTree],
+    () => activeCategoryNode?.goals ?? [],
+    [activeCategoryNode],
   );
 
   const isAssigned = (goalId: string) =>
@@ -841,7 +861,62 @@ function StudentAdminModal({
     visibleGoalIds.length > 0 && visibleAssignedCount === visibleGoalIds.length;
   const allVisibleCompleted =
     visibleAssignedCount > 0 && visibleCompletedCount === visibleAssignedCount;
-  const scopeLabel = filterCat === "ALL" ? "all tracks" : filterCat;
+  const activeGroupName = activeGroupNode?.group.name ?? "—";
+  const activeCategoryName = activeCategoryNode?.category.name ?? "—";
+  const scopeLabel = activeCategoryName;
+  const studentLabel = formData.name?.trim() || "this student";
+
+  const requestBulkAssigned = (assign: boolean) => {
+    if (visibleGoalIds.length === 0) return;
+    const count = visibleGoalIds.length;
+    if (assign) {
+      setBulkConfirm({
+        kind: "assign",
+        title: `Assign all ${count} goals?`,
+        message: `Are you sure you want to assign all ${count} goals in the "${activeCategoryName}" category for ${studentLabel}? This will add every goal in this category to the student's tracker.`,
+        onConfirm: () => {
+          bulkSetAssigned(true);
+          setBulkConfirm(null);
+        },
+      });
+    } else {
+      setBulkConfirm({
+        kind: "unassign",
+        title: `Remove all ${count} goals?`,
+        message: `Are you sure you want to remove all ${count} goals in the "${activeCategoryName}" category for ${studentLabel}? WARNING: This will permanently delete existing completion dates and audit histories for these specific goals. This action cannot be undone.`,
+        onConfirm: () => {
+          bulkSetAssigned(false);
+          setBulkConfirm(null);
+        },
+      });
+    }
+  };
+
+  const requestBulkCompleted = (complete: boolean) => {
+    if (visibleGoalIds.length === 0) return;
+    const count = visibleGoalIds.length;
+    if (complete) {
+      setBulkConfirm({
+        kind: "complete",
+        title: `Mark all ${count} goals as complete?`,
+        message: `Are you sure you want to mark all ${count} goals in the "${activeCategoryName}" category as complete for ${studentLabel}? WARNING: Doing this will overwrite existing completion dates and audit histories for these specific goals. This action cannot be undone.`,
+        onConfirm: () => {
+          bulkSetCompleted(true);
+          setBulkConfirm(null);
+        },
+      });
+    } else {
+      setBulkConfirm({
+        kind: "uncomplete",
+        title: `Unmark completion for ${count} goals?`,
+        message: `Are you sure you want to clear the completion status for all ${count} goals in the "${activeCategoryName}" category for ${studentLabel}? WARNING: This will erase existing completion dates and audit notes for these goals. This action cannot be undone.`,
+        onConfirm: () => {
+          bulkSetCompleted(false);
+          setBulkConfirm(null);
+        },
+      });
+    }
+  };
 
   const bulkSetAssigned = (assign: boolean) => {
     setFormData((prev) => {
