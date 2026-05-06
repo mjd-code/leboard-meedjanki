@@ -1138,9 +1138,9 @@ function StudentAdminModal({
             </div>
           </div>
 
-          {/* Goal Selector */}
-          <div className="flex-1 border-border lg:border-l lg:pl-8 pt-8 lg:pt-0">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
+          {/* Goal Selector — flattened: Group (Combobox) → Category (Tabs) → Goals */}
+          <div className="flex-1 border-border lg:border-l lg:pl-8 pt-8 lg:pt-0 min-w-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
               <div>
                 <h3 className="text-lg font-black text-foreground">
                   Penugasan Kategori
@@ -1149,19 +1149,96 @@ function StudentAdminModal({
                   Atur tugas untuk Santri ini
                 </p>
               </div>
-              <PopoverSelect
-                className="bg-secondary min-w-[200px] border-none rounded-xl h-9 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary/50"
-                value={filterCat}
-                onValueChange={setFilterCat}
-                options={[
-                  { value: "ALL", label: "Semua Kategori" },
-                  ...sortByOrder(categories).map((c: any) => ({
-                    value: c.name,
-                    label: c.name
-                  }))
-                ]}
-              />
+              {/* Group Combobox */}
+              <Popover open={groupPickerOpen} onOpenChange={setGroupPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 bg-secondary rounded-xl h-10 px-4 text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors min-w-[220px] justify-between"
+                  >
+                    <span className="inline-flex items-center gap-2 truncate">
+                      <Layers className="w-4 h-4 text-muted-foreground" />
+                      <span className="truncate">{activeGroupName}</span>
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[260px]" align="end">
+                  <Command>
+                    <CommandInput placeholder="Cari grup..." />
+                    <CommandList>
+                      <CommandEmpty>Tidak ada grup.</CommandEmpty>
+                      <CommandGroup>
+                        {tree.map((node) => (
+                          <CommandItem
+                            key={node.group.id}
+                            value={node.group.name}
+                            onSelect={() => {
+                              setSelectedGroupId(node.group.id);
+                              setSelectedCategoryId(null);
+                              setGroupPickerOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                node.group.id === activeGroupNode?.group.id
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            <span className="truncate">{node.group.name}</span>
+                            <span className="ml-auto text-[10px] font-bold text-muted-foreground">
+                              {node.categories.flatMap((c) => c.goals).length}
+                            </span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
+
+            {/* Category chips (horizontal scroll) */}
+            {activeCategories.length > 0 && (
+              <div className="mb-4 -mx-1 px-1 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 min-w-max pb-1">
+                  {activeCategories.map((catNode) => {
+                    const cid = catNode.category.id;
+                    const active = cid === activeCategoryNode?.category.id;
+                    const assignedCount = catNode.goals.filter((g) =>
+                      isAssigned(g.id),
+                    ).length;
+                    return (
+                      <button
+                        key={cid}
+                        type="button"
+                        onClick={() => setSelectedCategoryId(cid)}
+                        className={cn(
+                          "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
+                          active
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background border-border text-foreground/70 hover:border-foreground",
+                        )}
+                      >
+                        <span>{catNode.category.name}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] font-black px-1.5 rounded-full",
+                            active
+                              ? "bg-background/20"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          {assignedCount}/{catNode.goals.length}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Bulk actions for the current track scope */}
             {visibleGoalIds.length > 0 && (
@@ -1177,7 +1254,7 @@ function StudentAdminModal({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => bulkSetAssigned(!allVisibleAssigned)}
+                    onClick={() => requestBulkAssigned(!allVisibleAssigned)}
                     className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-xl transition-all ${
                       allVisibleAssigned
                         ? "bg-secondary text-muted-foreground hover:bg-secondary/80"
@@ -1198,7 +1275,7 @@ function StudentAdminModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => bulkSetCompleted(!allVisibleCompleted)}
+                    onClick={() => requestBulkCompleted(!allVisibleCompleted)}
                     className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-xl transition-all ${
                       allVisibleCompleted
                         ? "bg-secondary text-muted-foreground hover:bg-secondary/80"
@@ -1219,126 +1296,37 @@ function StudentAdminModal({
               </div>
             )}
 
-            <div className="space-y-4 pb-4">
-              {filteredTree.map((node) => {
-                const groupOpen = expandedGroups[node.group.id] !== false;
-                const groupGoals = node.categories.flatMap((c) => c.goals);
-                const groupAssigned = groupGoals.filter((g) => isAssigned(g.id)).length;
-                return (
-                  <div
-                    key={node.group.id}
-                    className="rounded-xl border border-border bg-secondary/10 overflow-hidden"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedGroups((p) => ({
-                          ...p,
-                          [node.group.id]: !groupOpen,
-                        }))
+            {/* Flat goal list for the active Group + Category */}
+            <div className="space-y-2 pb-4">
+              {displayedMasterGoals.length === 0 ? (
+                <div className="text-center py-12 text-sm text-muted-foreground">
+                  Tidak ada tugas pada kategori ini.
+                </div>
+              ) : (
+                displayedMasterGoals.map((mg: any, index: number) => {
+                  const assigned = isAssigned(mg.id);
+                  const completed = isCompleted(mg.id);
+                  const ag = formData.assignedGoals.find(
+                    (a) => a.goalId === mg.id,
+                  );
+                  return (
+                    <GoalAuditCard
+                      key={`${mg.id}-${index}`}
+                      goal={mg}
+                      assigned={assigned}
+                      completed={completed}
+                      assignedGoal={ag}
+                      admins={admins}
+                      currentAdmin={currentAdmin}
+                      onToggleAssign={() => toggleAssignment(mg.id)}
+                      onApplyCompletion={(payload) =>
+                        applyCompletionToGoal(mg.id, payload)
                       }
-                      className="w-full flex items-center justify-between p-3 text-left hover:bg-secondary/20"
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-black text-sm text-foreground">
-                          {node.group.name}
-                        </span>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                          {groupAssigned}/{groupGoals.length} ditugaskan ·{" "}
-                          {node.categories.length} kategori
-                        </span>
-                      </div>
-                      <ChevronDown
-                        className={`w-4 h-4 text-muted-foreground transition-transform ${groupOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {groupOpen && (
-                        <motion.div
-                          layout
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          style={{ overflow: "hidden" }}
-                        >
-                          <div className="p-3 pt-0 space-y-3 border-t border-border/40">
-                            {node.categories.map((catNode) => {
-                              const cid = catNode.category.id;
-                              const catOpen = expandedCats[cid] !== false;
-                              const assignedCount = catNode.goals.filter((g) =>
-                                isAssigned(g.id),
-                              ).length;
-                              return (
-                                <div
-                                  key={cid}
-                                  className="rounded-xl bg-card border border-border overflow-hidden"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setExpandedCats((p) => ({ ...p, [cid]: !catOpen }))
-                                    }
-                                    className="w-full flex items-center justify-between p-3 text-left hover:bg-secondary/20"
-                                  >
-                                    <div className="flex flex-col">
-                                      <span className="font-bold text-sm text-foreground">
-                                        {catNode.category.name}
-                                      </span>
-                                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                        {assignedCount}/{catNode.goals.length} ditugaskan
-                                      </span>
-                                    </div>
-                                    <ChevronDown
-                                      className={`w-4 h-4 text-muted-foreground transition-transform ${catOpen ? "rotate-180" : ""}`}
-                                    />
-                                  </button>
-                                  <AnimatePresence initial={false}>
-                                    {catOpen && (
-                                      <motion.div
-                                        layout
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        style={{ overflow: "hidden" }}
-                                      >
-                                        <div className="p-3 space-y-2 border-t border-border/40">
-                                          {catNode.goals.map((mg: any, index: number) => {
-                                            const assigned = isAssigned(mg.id);
-                                            const completed = isCompleted(mg.id);
-                                            const ag = formData.assignedGoals.find(
-                                              (a) => a.goalId === mg.id,
-                                            );
-                                            return (
-                                              <GoalAuditCard
-                                                key={`${mg.id}-${index}`}
-                                                goal={mg}
-                                                assigned={assigned}
-                                                completed={completed}
-                                                assignedGoal={ag}
-                                                admins={admins}
-                                                currentAdmin={currentAdmin}
-                                                onToggleAssign={() => toggleAssignment(mg.id)}
-                                                onApplyCompletion={(payload) =>
-                                                  applyCompletionToGoal(mg.id, payload)
-                                                }
-                                                onUnmark={() => unmarkCompletion(mg.id)}
-                                              />
-                                            );
-                                          })}
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
+                      onUnmark={() => unmarkCompletion(mg.id)}
+                    />
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -1365,6 +1353,13 @@ function StudentAdminModal({
           </Button>
         </div>
       </motion.div>
+      <ConfirmModal
+        isOpen={!!bulkConfirm}
+        title={bulkConfirm?.title || ""}
+        message={bulkConfirm?.message || ""}
+        onConfirm={() => bulkConfirm?.onConfirm()}
+        onCancel={() => setBulkConfirm(null)}
+      />
     </div>
   );
 }
