@@ -28,21 +28,35 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Edukasi",
     tags: ["kepemimpinan", "santri", "digital", "karakter"],
     featured_image:
-      "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhzsm5l/1600/900",
     daysAgo: 0,
     meta_title: "Kepemimpinan Santri di Era Digital — PPMH Insight",
     meta_description:
       "Pondok Pesantren Miftahul Huda membekali santri dengan kepemimpinan, literasi digital, dan akhlak mulia.",
-    content: lorem([
-      "Di tengah arus deras transformasi digital, peran pesantren tidak lagi sekadar menjaga warisan klasik keilmuan Islam, tetapi juga menyiapkan kader pemimpin yang relevan dengan zaman. Pondok Pesantren Miftahul Huda (PPMH) memandang dua hal ini bukan sebagai pertentangan, melainkan sebagai pilar yang harus berjalan bergandengan.",
-      "Sejak tiga tahun terakhir, PPMH menggulirkan program <em>Madrasah Kepemimpinan Santri</em>, sebuah kurikulum tambahan yang mengasah kemampuan komunikasi publik, manajemen organisasi, hingga literasi data. Para santri dilatih memimpin rapat, menyusun proposal kegiatan, dan mengevaluasi program berbasis indikator yang terukur.",
-      "“Kami ingin santri tidak hanya pandai memahami kitab, tetapi juga pandai memimpin masyarakatnya kelak,” ujar Ustadz Hilman, koordinator program. Menurutnya, kepemimpinan adalah amanah yang menuntut keterpaduan ilmu, akhlak, dan keterampilan praktis.",
-      "Modul digital menjadi bagian wajib. Santri belajar dasar-dasar keamanan siber, etika bermedia sosial, hingga produksi konten dakwah berbasis video pendek. Studio mini di kompleks pesantren beroperasi setiap pekan, menghasilkan ratusan konten yang ditonton ribuan jamaah daring.",
-      "Hasilnya mulai terlihat. Beberapa alumni terpilih sebagai delegasi Indonesia pada forum pemuda lintas agama tingkat ASEAN, sementara yang lain merintis startup sosial yang fokus pada literasi keuangan syariah di pedesaan. Dampaknya kembali kepada pesantren dalam bentuk jejaring alumni yang aktif memberi dukungan beasiswa.",
-      "Tantangan tentu tidak ringan. Distraksi digital, polarisasi opini, dan derasnya hoaks menuntut santri memiliki <strong>filter ilmu</strong> yang kuat. Karena itu, kajian ushul fikih, manthiq, dan tafsir kontemporer menjadi fondasi sebelum mereka diterjunkan ke ruang publik digital.",
-      "PPMH percaya, kepemimpinan sejati tumbuh dari kepekaan terhadap penderitaan umat. Setiap santri pemimpin diwajibkan menjalani program <em>khidmah masyarakat</em> selama satu bulan penuh: mengajar TPA, mendampingi UMKM, atau menjadi relawan bencana. Pengalaman lapangan ini menjadi kawah candradimuka pembentukan karakter.",
-      "Ke depan, pesantren menargetkan pembukaan inkubator kepemimpinan lintas pesantren se-Jawa Barat. Harapannya, lahir generasi pemimpin yang membumi, melek teknologi, dan tetap berpegang teguh pada nilai-nilai Ahlussunnah wal Jamaah.",
-    ]),
+    content: `
+      <p>Di tengah arus deras transformasi digital, peran pesantren tidak lagi sekadar menjaga warisan klasik keilmuan Islam, tetapi juga menyiapkan kader pemimpin yang relevan dengan zaman. Pondok Pesantren Miftahul Huda (PPMH) memandang dua hal ini bukan sebagai pertentangan, melainkan sebagai pilar yang harus berjalan bergandengan.</p>
+      
+      <h2>1. Visi Baru Madrasah Kepemimpinan</h2>
+      <p>Sejak tiga tahun terakhir, PPMH menggulirkan program <em>Madrasah Kepemimpinan Santri</em>, sebuah kurikulum tambahan yang mengasah kemampuan komunikasi publik, manajemen organisasi, hingga literasi data. Para santri dilatih memimpin rapat, menyusun proposal kegiatan, dan mengevaluasi program berbasis indikator yang terukur.</p>
+      
+      <h3>1.1. Modul Keterampilan Praktis</h3>
+      <p>“Kami ingin santri tidak hanya pandai memahami kitab, tetapi juga pandai memimpin masyarakatnya kelak,” ujar Ustadz Hilman, koordinator program. Menurutnya, kepemimpinan adalah amanah yang menuntut keterpaduan ilmu, akhlak, dan keterampilan praktis.</p>
+      
+      <h3>1.2. Fokus pada Literasi Digital</h3>
+      <p>Modul digital menjadi bagian wajib. Santri belajar dasar-dasar keamanan siber, etika bermedia sosial, hingga produksi konten dakwah berbasis video pendek. Studio mini di kompleks pesantren beroperasi setiap pekan, menghasilkan ratusan konten yang ditonton ribuan jamaah daring.</p>
+      
+      <h2>2. Hasil dan Dampak Program</h2>
+      <p>Hasilnya mulai terlihat. Beberapa alumni terpilih sebagai delegasi Indonesia pada forum pemuda lintas agama tingkat ASEAN, sementara yang lain merintis startup sosial yang fokus pada literasi keuangan syariah di pedesaan. Dampaknya kembali kepada pesantren dalam bentuk jejaring alumni yang aktif memberi dukungan beaSantri.</p>
+      
+      <h3>2.1. Tantangan di Lapangan</h3>
+      <p>Tantangan tentu tidak ringan. Distraksi digital, polarisasi opini, dan derasnya hoaks menuntut santri memiliki <strong>filter ilmu</strong> yang kuat. Karena itu, kajian ushul fikih, manthiq, dan tafsir kontemporer menjadi fondasi sebelum mereka diterjunkan ke ruang publik digital.</p>
+      
+      <h4>2.1.1. Kepekaan Sosial</h4>
+      <p>PPMH percaya, kepemimpinan sejati tumbuh dari kepekaan terhadap penderitaan umat. Setiap santri pemimpin diwajibkan menjalani program <em>khidmah masyarakat</em> selama satu bulan penuh: mengajar TPA, mendampingi UMKM, atau menjadi relawan bencana. Pengalaman lapangan ini menjadi kawah candradimuka pembentukan karakter.</p>
+      
+      <h2>3. Langkah ke Depan</h2>
+      <p>Ke depan, pesantren menargetkan pembukaan inkubator kepemimpinan lintas pesantren se-Jawa Barat. Harapannya, lahir generasi pemimpin yang membumi, melek teknologi, dan tetap berpegang teguh pada nilai-nilai Ahlussunnah wal Jamaah.</p>
+    `,
   },
   {
     title:
@@ -53,7 +67,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Prestasi",
     tags: ["prestasi", "literasi", "esai", "nasional"],
     featured_image:
-      "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhx5whb/1600/900",
     daysAgo: 2,
     content: lorem([
       "Kabar membanggakan datang dari ajang Lomba Menulis Esai Tingkat Nasional 2026 yang digelar Kementerian Agama. Tim literasi Pondok Pesantren Miftahul Huda (PPMH) berhasil menyabet predikat Juara Umum dengan enam medali: dua emas, tiga perak, dan satu perunggu.",
@@ -62,7 +76,7 @@ export const SEED_POSTS: SeedPost[] = [
       "“Saya banyak membaca kitab-kitab klasik di perpustakaan pesantren, lalu menghubungkannya dengan laporan IPCC. Ternyata Islam sudah lama berbicara soal konservasi air,” tutur Dewi. Ia berharap esainya bisa menjadi pengingat bahwa khazanah Islam tetap relevan menjawab persoalan kekinian.",
       "Pembina literasi, Ustadzah Maryam, menjelaskan bahwa keberhasilan ini adalah buah dari ekosistem membaca yang dibangun bertahun-tahun. Setiap santri diwajibkan menyelesaikan minimal 24 buku per tahun, dengan bimbingan kakak asuh literasi.",
       "Selain medali individu, PPMH juga menerima penghargaan <em>Pesantren Literasi Terbaik</em>. Penghargaan ini diberikan atas konsistensi pesantren dalam menerbitkan buletin bulanan, jurnal santri, dan podcast kajian yang dijalankan sepenuhnya oleh para santri.",
-      "Pimpinan pondok, KH. Abdul Hadi, menyampaikan rasa syukur dan menekankan pentingnya menjaga kerendahan hati. “Prestasi ini bukan tujuan akhir, melainkan amanah untuk terus berkhidmah lewat tulisan,” pesannya saat menyambut tim di gerbang pondok.",
+      "Pimpinan pondok, KH. Abdul Hadi, menyampaikan rasa syukur dan menekankan pentingnya menjaga kerendahan hati. “Prestasi ini bukan Tugas akhir, melainkan amanah untuk terus berkhidmah lewat tulisan,” pesannya saat menyambut tim di gerbang pondok.",
       "Sebagai apresiasi, pesantren akan memberangkatkan tiga santri terbaik mengikuti residensi penulisan di Yogyakarta selama dua pekan. Mereka akan dibimbing langsung oleh penulis senior nasional dan diharapkan menghasilkan karya buku antologi sebelum akhir tahun.",
     ]),
   },
@@ -74,7 +88,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Kajian",
     tags: ["kajian", "tasawuf", "al-hikam", "sabar"],
     featured_image:
-      "https://images.unsplash.com/photo-1507676184212-d0330a151f84?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhocsgv/1600/900",
     daysAgo: 5,
     content: lorem([
       "Kajian rutin Selasa malam di aula utama PPMH kembali ramai oleh ratusan santri dan jamaah dari kampung sekitar. Kitab yang dikaji malam itu adalah <em>Al-Hikam</em> karya Syaikh Ibnu Athaillah As-Sakandari, dengan fokus pembahasan hikmah keempat tentang sabar.",
@@ -95,7 +109,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Inovasi",
     tags: ["teknologi", "robotika", "inovasi", "santri"],
     featured_image:
-      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmh9uzpq4/1600/900",
     daysAgo: 8,
     content: lorem([
       "PPMH resmi membuka <strong>Lab Robotika Santri</strong>, sebuah ruang seluas 120 meter persegi yang dilengkapi dengan 30 unit komputer, printer 3D, dan ratusan modul Arduino serta Raspberry Pi. Peresmian dihadiri perwakilan Kementerian Agama dan beberapa kampus mitra.",
@@ -116,7 +130,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Komunitas",
     tags: ["festival", "budaya", "alumni", "umkm"],
     featured_image:
-      "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmh0z0zcp/1600/900",
     daysAgo: 12,
     content: lorem([
       "Selama tiga hari berturut-turut, kompleks PPMH disulap menjadi ruang ekspresi raksasa dalam Festival Budaya Santri 2026. Lebih dari tiga ribu pengunjung memadati area pondok, dari santri, wali murid, alumni, hingga warga sekitar.",
@@ -126,26 +140,26 @@ export const SEED_POSTS: SeedPost[] = [
       "Kompetisi kaligrafi digital menjadi sorotan baru. Peserta tidak lagi hanya menggunakan kuas dan tinta, tetapi juga tablet grafis dan perangkat lunak desain. “Tradisi tidak boleh terhenti, ia harus berbicara dengan bahasa zamannya,” kata juri kompetisi.",
       "Kelas-kelas terbuka digelar paralel: workshop menulis kreatif, dasar fotografi jurnalistik, hingga manajemen keuangan rumah tangga. Semua kelas gratis dan menggunakan sistem pendaftaran daring yang dibangun santri tim IT pondok.",
       "Hari terakhir ditutup dengan doa bersama dan pelepasan ribuan lentera kertas ramah lingkungan. Pemandangan langit malam yang dihiasi cahaya kecil menjadi momen yang menyentuh, menggambarkan harapan tentang masa depan generasi santri.",
-      "Panitia mengumumkan bahwa hasil donasi festival, sebesar lebih dari Rp220 juta, akan dialokasikan untuk beasiswa santri yatim dan pembangunan asrama putri yang sedang dalam tahap akhir.",
+      "Panitia mengumumkan bahwa hasil donasi festival, sebesar lebih dari Rp220 juta, akan dialokasikan untuk beaSantri santri yatim dan pembangunan asrama putri yang sedang dalam tahap akhir.",
     ]),
   },
   {
-    title: "Beasiswa Tahfidz: Membuka Pintu untuk Santri Daerah 3T",
-    slug: "beasiswa-tahfidz-santri-daerah-3t",
+    title: "BeaSantri Tahfidz: Membuka Pintu untuk Santri Daerah 3T",
+    slug: "beaSantri-tahfidz-santri-daerah-3t",
     excerpt:
-      "Program beasiswa penuh untuk 50 santri terpilih dari daerah tertinggal, terdepan, dan terluar Indonesia.",
+      "Program beaSantri penuh untuk 50 santri terpilih dari daerah tertinggal, terdepan, dan terluar Indonesia.",
     category: "Pengumuman",
-    tags: ["beasiswa", "tahfidz", "3t", "pengumuman"],
+    tags: ["beaSantri", "tahfidz", "3t", "pengumuman"],
     featured_image:
-      "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhyb2k4/1600/900",
     daysAgo: 15,
     content: lorem([
-      "Pondok Pesantren Miftahul Huda secara resmi membuka pendaftaran <strong>Beasiswa Tahfidz Nusantara</strong> tahun ajaran 2026/2027. Sebanyak 50 kursi disediakan khusus bagi calon santri dari daerah 3T (Tertinggal, Terdepan, Terluar).",
-      "Program ini menanggung seluruh biaya pendidikan, asrama, makan tiga kali sehari, kitab, hingga tiket transportasi pulang-pergi sekali setahun. Tujuannya jelas: memutus mata rantai keterbatasan akses pendidikan keagamaan berkualitas.",
+      "Pondok Pesantren Miftahul Huda secara resmi membuka pendaftaran <strong>BeaSantri Tahfidz Nusantara</strong> tahun ajaran 2026/2027. Sebanyak 50 kursi disediakan khusus bagi calon santri dari daerah 3T (Tertinggal, Terdepan, Terluar).",
+      "Program ini menanggung seluruh biaya pendidikan, asrama, makan tiga kali sehari, kitab, hingga tiket transportasi pulang-pergi sekali setahun. Tugasnya jelas: memutus mata rantai keterbatasan akses pendidikan keagamaan berkualitas.",
       "Persyaratan administratif meliputi usia 12–16 tahun, hafalan minimal 5 juz, surat rekomendasi tokoh agama setempat, dan bukti domisili dari kepala desa. Seleksi dilakukan dalam tiga tahap: berkas, tes hafalan daring, dan wawancara kepribadian.",
       "“Banyak anak hebat di pelosok yang potensinya belum tersentuh. Kami ingin menjemput mereka,” jelas ketua panitia, Ustadz Ramli. Beliau menekankan pentingnya pemerataan, agar pesantren tidak hanya menjadi privilege bagi yang tinggal di kota.",
       "Untuk memudahkan calon peserta dari daerah dengan koneksi internet terbatas, panitia bekerja sama dengan kantor pos dan kantor urusan agama setempat sebagai titik distribusi formulir dan tempat tes daring.",
-      "Selain pembiayaan, peserta beasiswa akan mengikuti program pendampingan psikososial untuk membantu adaptasi terhadap lingkungan baru. Mentor diambil dari alumni yang berasal dari daerah serupa, sehingga proses adaptasi lebih lancar.",
+      "Selain pembiayaan, peserta beaSantri akan mengikuti program pendampingan psikososial untuk membantu adaptasi terhadap lingkungan baru. Mentor diambil dari alumni yang berasal dari daerah serupa, sehingga proses adaptasi lebih lancar.",
       "Pendaftaran dibuka mulai 1 Mei hingga 30 Juni 2026. Pengumuman hasil seleksi akan disampaikan paling lambat 15 Juli 2026 melalui situs resmi pesantren dan kanal media sosial. Santri terpilih diharapkan dapat memulai pembelajaran pada Agustus 2026.",
       "Pesantren mengajak para donatur, alumni, dan masyarakat luas untuk turut menyukseskan program ini. Sumbangan dapat disalurkan melalui rekening resmi yayasan dan setiap donasi akan dilaporkan secara transparan setiap kuartal.",
     ]),
@@ -158,7 +172,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Komunitas",
     tags: ["kuliner", "dapur", "manajemen"],
     featured_image:
-      "https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhuwcdsk/1600/900",
     daysAgo: 20,
     content: lorem([
       "Pukul tiga dini hari, lampu dapur PPMH sudah menyala. Sembilan ibu juru masak yang akrab disapa <em>“ummi dapur”</em> mulai mengupas bawang, mencuci sayur, dan menanak nasi dalam panci raksasa berkapasitas 80 liter.",
@@ -179,7 +193,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Prestasi",
     tags: ["olimpiade", "sains", "internasional"],
     featured_image:
-      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhcyq3bb/1600/900",
     daysAgo: 25,
     content: lorem([
       "Lima santri PPMH dipastikan lolos sebagai delegasi Indonesia pada <em>Asia Madrasah Science Olympiad</em> 2026 yang akan digelar di Kuala Lumpur. Mereka akan berlaga pada bidang Matematika, Fisika, Biologi, Kimia, dan Astronomi.",
@@ -200,7 +214,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Opini",
     tags: ["opini", "al-ghazali", "tasawuf", "gen-z"],
     featured_image:
-      "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmh0eac44/1600/900",
     daysAgo: 30,
     content: lorem([
       "Generasi Z hidup di tengah ledakan informasi yang belum pernah dialami umat manusia sebelumnya. Setiap detik, miliaran konten diproduksi dan disajikan tanpa henti. Dalam situasi inilah, pemikiran Imam Al-Ghazali tentang <em>tazkiyatun nafs</em> kembali menemukan relevansinya.",
@@ -221,7 +235,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Pengumuman",
     tags: ["tahfidz", "wisuda", "santri"],
     featured_image:
-      "https://images.unsplash.com/photo-1526857240196-22e10aaca8a3?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhli18fm/1600/900",
     daysAgo: 35,
     content: lorem([
       "Aula utama PPMH dipenuhi sorot lampu hangat dan suara isak tangis bahagia. Sebanyak 87 santri putra dan putri diwisuda sebagai penghafal 30 juz Al-Qur'an pada Sabtu pagi, menjadi prosesi wisuda tahfidz terbesar dalam sejarah pesantren.",
@@ -242,7 +256,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Komunitas",
     tags: ["lingkungan", "konservasi", "kolaborasi"],
     featured_image:
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmh5jtsv/1600/900",
     daysAgo: 40,
     content: lorem([
       "Sabtu pagi yang sejuk, ratusan santri PPMH mendaki lereng bukit di belakang pesantren membawa bibit pohon dan cangkul. Hari itu adalah puncak <strong>Gerakan Hijau Santri</strong> dengan target menanam 10.000 pohon dalam satu hari.",
@@ -263,7 +277,7 @@ export const SEED_POSTS: SeedPost[] = [
     category: "Inovasi",
     tags: ["literasi", "perpustakaan", "digital"],
     featured_image:
-      "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=1600",
+      "https://picsum.photos/seed/ppmhebkzms/1600/900",
     daysAgo: 45,
     content: lorem([
       "PPMH meluncurkan <strong>Perpustakaan Digital Santri</strong>, platform berbasis web yang memuat 12.000 koleksi: kitab kuning klasik, jurnal akademik, buku kontemporer, hingga arsip kajian video pesantren selama 15 tahun terakhir.",
@@ -279,5 +293,5 @@ export const SEED_POSTS: SeedPost[] = [
 ];
 
 export const SEED_CATEGORIES = Array.from(
-  new Set(SEED_POSTS.map((p) => p.category))
+  new Set(SEED_POSTS.map((p) => p.category)),
 );

@@ -30,13 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { PopoverSelect } from "@/components/ui/PopoverSelect";
 import { Loader2, Plus, Pencil, Trash2, X, User } from "lucide-react";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import type { AdminUser, AdminRole } from "@/lib/types";
@@ -211,14 +205,13 @@ export function AdminUserManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Peran</Label>
-              <Select disabled value="admin">
-                <SelectTrigger id="role" className="bg-muted cursor-not-allowed text-muted-foreground">
-                  <SelectValue placeholder="Admin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <PopoverSelect 
+                disabled 
+                value="admin"
+                onValueChange={() => {}}
+                options={[{value: "admin", label: "Admin"}]}
+                className="bg-muted cursor-not-allowed text-muted-foreground"
+              />
             </div>
             <div className="flex justify-end pt-4">
               <Button type="submit" className="w-full sm:w-auto">Simpan Profil</Button>
@@ -281,18 +274,15 @@ export function AdminUserManagement() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Peran</Label>
-                <Select
+                <PopoverSelect
                   value={formData.role}
                   onValueChange={(v) => setFormData({ ...formData, role: v as AdminRole })}
-                >
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Pilih Peran" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                  options={[
+                    { value: "super_admin", label: "Super Admin" },
+                    { value: "admin", label: "Admin" }
+                  ]}
+                  placeholder="Pilih Peran"
+                />
               </div>
               <div className="flex justify-end pt-4">
                 <Button type="submit" className="w-full sm:w-auto px-6">Simpan</Button>

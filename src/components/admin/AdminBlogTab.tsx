@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Globe, EyeOff, Check, X, ShieldAlert, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Globe, EyeOff, Check, X, ShieldAlert, Loader2, ChevronDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { Button } from '../ui/button';
@@ -11,10 +11,24 @@ import { DataTable } from '../ui/DataTable';
 import { ColumnDef } from '@tanstack/react-table';
 import type { Post, AdminUser } from '../../lib/types';
 import { TiptapEditor } from './TiptapEditor';
+import { PopoverSelect } from '../ui/PopoverSelect';
 import { useAuthRole } from '@/hooks/useAuthRole';
 import Image from 'next/image';
 import { ImageUploader } from '../ui/ImageUploader';
 import { toast } from 'sonner';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 
 export function AdminBlogTab() {
   const queryClient = useQueryClient();
@@ -113,7 +127,13 @@ export function AdminBlogTab() {
     {
       accessorKey: 'title',
       header: 'Judul',
-      cell: ({ row }) => <div className="font-medium max-w-[300px] truncate">{row.getValue('title')}</div>
+      cell: ({ row }) => (
+        <div className="font-medium text-sm sm:text-base w-[150px] sm:w-[250px] lg:w-[400px]">
+          <span className="line-clamp-2" title={row.getValue('title')}>
+            {row.getValue('title')}
+          </span>
+        </div>
+      )
     },
     {
       accessorKey: 'status',
@@ -185,6 +205,9 @@ export function AdminBlogTab() {
     }
   ], [isSuperAdmin]);
 
+  const [openCat, setOpenCat] = useState(false);
+  const [catSearch, setCatSearch] = useState("");
+
   if (isEditing) {
     return (
       <div className="space-y-8 p-2 md:p-4">
@@ -222,43 +245,101 @@ export function AdminBlogTab() {
           <div className="space-y-6 bg-card text-card-foreground p-6 md:p-8 rounded-2xl border border-border shadow-soft h-fit lg:sticky lg:top-24">
             <div className="space-y-2">
               <label className="text-sm font-semibold">Status</label>
-              <select 
-                className="w-full p-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              <PopoverSelect
                 value={isEditing.status || 'draft'}
-                onChange={e => setIsEditing({ ...isEditing, status: e.target.value as 'draft' | 'published' })}
-              >
-                <option value="draft">Draf</option>
-                <option value="published">Terbit</option>
-              </select>
+                onValueChange={(v: string) => setIsEditing({ ...isEditing, status: v as 'draft' | 'published' })}
+                options={[
+                  { value: 'draft', label: 'Draf' },
+                  { value: 'published', label: 'Terbit' }
+                ]}
+                className="w-full h-12 rounded-xl border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-semibold">Penulis</label>
-              <select 
-                className="w-full p-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              <PopoverSelect
                 value={isEditing.author_id || ''}
-                onChange={e => setIsEditing({ ...isEditing, author_id: e.target.value })}
-              >
-                <option value="">-- Pilih Penulis --</option>
-                {adminUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
-                ))}
-              </select>
+                onValueChange={(v: string) => setIsEditing({ ...isEditing, author_id: v })}
+                options={adminUsers.map(u => ({ value: u.id, label: u.full_name || u.email }))}
+                placeholder="-- Pilih Penulis --"
+                className="w-full h-12 rounded-xl border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-semibold">Kategori</label>
-              <Input
-                list="categories-list"
-                value={isEditing.category || ''}
-                onChange={e => setIsEditing({ ...isEditing, category: e.target.value })}
-                placeholder="Misal: Berita, Pengumuman (Ketik baru)"
-              />
-              <datalist id="categories-list">
-                {existingCategories.map(c => (
-                  <option key={c as string} value={c as string} />
-                ))}
-              </datalist>
+              <Popover open={openCat} onOpenChange={setOpenCat}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCat}
+                    className="w-full justify-between h-12 rounded-xl border-border bg-background font-normal"
+                  >
+                    {isEditing.category || "Pilih atau ketik kategori..."}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 z-[100] rounded-xl border-border">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Cari atau ketik kategori baru..." 
+                      value={catSearch}
+                      onValueChange={setCatSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start text-sm"
+                          onClick={() => {
+                            setIsEditing({ ...isEditing, category: catSearch });
+                            setOpenCat(false);
+                            setCatSearch("");
+                          }}
+                        >
+                          + Tambah "{catSearch}"
+                        </Button>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {existingCategories.map((c) => {
+                          const catStr = c as string;
+                          return (
+                            <CommandItem
+                              key={catStr}
+                              value={catStr}
+                              onSelect={(currentValue: string) => {
+                                setIsEditing({ ...isEditing, category: currentValue });
+                                setOpenCat(false);
+                                setCatSearch("");
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${isEditing.category === catStr ? "opacity-100" : "opacity-0"}`}
+                              />
+                              {catStr}
+                            </CommandItem>
+                          );
+                        })}
+                        {catSearch && !existingCategories.some(c => (c as string).toLowerCase() === catSearch.toLowerCase()) && (
+                           <CommandItem
+                             value={catSearch}
+                             onSelect={(currentValue: string) => {
+                               setIsEditing({ ...isEditing, category: currentValue });
+                               setOpenCat(false);
+                               setCatSearch("");
+                             }}
+                             className="text-primary font-bold border-t border-border/40 mt-1"
+                           >
+                             + Tambah "{catSearch}"
+                           </CommandItem>
+                        )}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
              <div className="space-y-2">
@@ -333,7 +414,7 @@ export function AdminBlogTab() {
               <label className="text-xs font-semibold text-muted-foreground">Gambar Utama (Featured Image)</label>
               {isEditing.featured_image && (
                 <div className="relative w-full h-32 rounded-lg overflow-hidden group border border-border bg-muted">
-                  <Image src={isEditing.featured_image} alt="Featured" fill referrerPolicy="no-referrer" className="object-cover" />
+                  <Image src={isEditing.featured_image} alt="Featured" fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" referrerPolicy="no-referrer" className="object-cover" />
                   <button 
                     onClick={() => setIsEditing({ ...isEditing, featured_image: '' })}
                     className="absolute top-2 right-2 bg-foreground/60 p-1.5 rounded-full text-background opacity-0 group-hover:opacity-100 transition-opacity"
@@ -414,15 +495,13 @@ export function AdminBlogTab() {
         </Button>
       </div>
 
-      <div className="bg-card text-card-foreground rounded-2xl p-6 md:p-8 border border-border shadow-soft">
-        <DataTable
-          columns={columns}
-          data={posts}
-          filterColumn="title"
-          filterPlaceholder="Cari judul artikel..."
-          onDeleteSelected={isSuperAdmin ? (ids) => setBulkDeleteIds(ids) : undefined}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={posts}
+        filterColumn="title"
+        filterPlaceholder="Cari judul artikel..."
+        onDeleteSelected={isSuperAdmin ? (ids) => setBulkDeleteIds(ids) : undefined}
+      />
 
       <ConfirmModal 
         isOpen={!!deleteConfirmId}

@@ -71,6 +71,24 @@ export async function uploadImageWithCompression(
   return b64;
 }
 
+/**
+ * Raw file upload (no compression). For PDFs, docs, csv, md, video, etc.
+ * Returns a base64 data URL so callers can persist alongside other media.
+ * NOTE: Firestore docs are capped at ~1MB — keep raw uploads small or swap to
+ * Cloud Storage if your blob exceeds that.
+ */
+export async function uploadRawFile(
+  file: File,
+  _folder: string = 'uploads'
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = () => reject(new Error('FileReader failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function batchUploadImages(
   files: File[],
   folder: string = "uploads",

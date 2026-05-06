@@ -122,25 +122,50 @@ const mapStudentInput = (s: any) => {
 
 const mapGoalRow = (r: any) => ({
   id: r.id,
+  categoryId: r.category_id ?? undefined,
   categoryName: r.category_name ?? r.categoryName ?? "",
   title: r.title,
   points: r.points,
   description: r.description || "",
+  order: r.order ?? 0,
 });
 
 const mapGoalInput = (g: any) => {
   const out: any = {};
   if (g.categoryName !== undefined) out.category_name = g.categoryName;
+  if (g.categoryId !== undefined) out.category_id = g.categoryId || null;
   if (g.title !== undefined) out.title = g.title;
   if (g.points !== undefined) out.points = g.points;
   if (g.description !== undefined) out.description = g.description;
+  if (g.order !== undefined) out.order = g.order;
   return out;
 };
 
-const mapCategoryRow = (r: any) => ({ id: r.id, name: r.name });
+const mapCategoryRow = (r: any) => ({
+  id: r.id,
+  name: r.name,
+  groupId: r.group_id ?? undefined,
+  order: r.order ?? 0,
+});
 const mapCategoryInput = (c: any) => {
   const out: any = {};
   if (c.name !== undefined) out.name = c.name;
+  if (c.groupId !== undefined) out.group_id = c.groupId || null;
+  if (c.order !== undefined) out.order = c.order;
+  return out;
+};
+
+const mapGroupRow = (r: any) => ({
+  id: r.id,
+  name: r.name,
+  order: r.order ?? 0,
+  isSystem: !!r.is_system,
+});
+const mapGroupInput = (g: any) => {
+  const out: any = {};
+  if (g.name !== undefined) out.name = g.name;
+  if (g.order !== undefined) out.order = g.order;
+  if (g.isSystem !== undefined) out.is_system = g.isSystem;
   return out;
 };
 
@@ -468,6 +493,63 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
       }
     }
 
+    // ===== GROUPS =====
+    if (path === "/api/groups" && method === "GET") {
+      const rows = await connSelect(conn, "groups").catch(() => []);
+      return ok((rows || []).map(mapGroupRow));
+    }
+    if (path === "/api/groups" && method === "POST") {
+      const input = mapGroupInput(body || {});
+      const rows = await connInsertReturning(conn, "groups", [input]);
+      return ok(mapGroupRow(rows[0] || input));
+    }
+    const groupMatch = path.match(/^\/api\/groups\/([^/]+)$/);
+    if (groupMatch) {
+      const id = groupMatch[1];
+      if (method === "PUT") {
+        const input = mapGroupInput(body || {});
+        const rows = await connUpdate(conn, "groups", `id=eq.${id}`, input);
+        return ok(mapGroupRow(rows[0] || { id, ...input }));
+      }
+      if (method === "DELETE") {
+        // Detach categories from this group instead of cascading delete.
+        try {
+          await connUpdate(conn, "categories", `group_id=eq.${id}`, { group_id: null });
+        } catch (e) { console.warn("detach categories failed", e); }
+        await connDeleteById(conn, "groups", id);
+        return ok();
+      }
+    }
+
+    // ===== REORDER =====
+    if (path === "/api/groups/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      await runWithConcurrency(items, async (it) => {
+        await connUpdate(conn, "groups", `id=eq.${it.id}`, { order: it.order });
+      });
+      return ok();
+    }
+    if (path === "/api/categories/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      const groupId = body?.groupId || null;
+      await runWithConcurrency(items, async (it) => {
+        const patch: any = { order: it.order };
+        if (groupId) patch.group_id = groupId;
+        await connUpdate(conn, "categories", `id=eq.${it.id}`, patch);
+      });
+      return ok();
+    }
+    if (path === "/api/masterGoals/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      const categoryId = body?.categoryId || null;
+      await runWithConcurrency(items, async (it) => {
+        const patch: any = { order: it.order };
+        if (categoryId) patch.category_id = categoryId;
+        await connUpdate(conn, "master_goals", `id=eq.${it.id}`, patch);
+      });
+      return ok();
+    }
+
     // ===== TRACK VISIT =====
     if (path === "/api/track-visit" && method === "POST") {
       const today = new Date().toISOString().split("T")[0];
@@ -708,6 +790,7 @@ export async function firebaseApiFetch(
     (path === '/api/students' ||
       path === '/api/categories' ||
       path === '/api/masterGoals' ||
+      path === '/api/groups' ||
       path === '/api/settings' ||
       path === '/api/admin_users' ||
       path === '/api/posts' ||

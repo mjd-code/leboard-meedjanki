@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { apiFetch } from '../../lib/api';
-import { UniversalDataTable } from '@/components/ui/UniversalDataTable';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DataTable } from '@/components/ui/DataTable';
+import { PopoverSelect } from '@/components/ui/PopoverSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { Database, Loader2 } from 'lucide-react';
@@ -100,16 +100,12 @@ export function AdminDatabaseTab() {
           </h3>
           <p className="text-muted-foreground text-sm mt-3">Jelajahi seluruh koleksi backend dalam satu tabel terpadu.</p>
         </div>
-        <Select value={active} onValueChange={(v) => setActive(v as CollectionKey)}>
-          <SelectTrigger className="w-full sm:w-64 h-12 rounded-xl border-border bg-card font-bold">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl shadow-soft border-border">
-            {COLLECTIONS.map(c => (
-              <SelectItem key={c.key} value={c.key} className="font-medium">{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <PopoverSelect
+          value={active}
+          onValueChange={(v) => setActive(v as CollectionKey)}
+          options={COLLECTIONS.map(c => ({ value: c.key, label: c.label }))}
+          className="w-full sm:w-64 h-12 rounded-xl border-border bg-card font-bold"
+        />
       </div>
 
       {isLoading ? (
@@ -117,7 +113,7 @@ export function AdminDatabaseTab() {
           <Loader2 className="w-4 h-4 animate-spin" /> Memuat {meta.label}…
         </div>
       ) : (
-        <UniversalDataTable
+        <DataTable
           columns={columns}
           data={data}
           filterColumn={meta.filterCol}

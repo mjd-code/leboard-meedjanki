@@ -10,7 +10,7 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ['ais-dev-cjvugk63n7wxv5427ewfm3-174887710382.asia-southeast1.run.app'],
+  allowedDevOrigins: ['ais-dev-m2nfs5niqim3txwsi7am36-174887710382.asia-southeast1.run.app'],
   reactStrictMode: true,
   // Phase 3: Production hardening
   output: 'standalone',
