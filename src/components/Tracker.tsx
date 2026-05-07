@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { trackArticleView } from '@/lib/firebase/tracking';
 import { sendGAEvent } from '@next/third-parties/google';
 
 /**
@@ -26,12 +26,8 @@ export function Tracker() {
     if (trackedSlugs.current.has(slug)) return;
     trackedSlugs.current.add(slug);
 
-    // Increment the post's view counter in Firebase
-    apiFetch('/api/track-article', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug }),
-    }).catch(console.error);
+    // Increment the post's view counter directly in Firestore.
+    trackArticleView(slug);
 
     // Also send a custom GA4 event for article reads (optional enrichment)
     try {
