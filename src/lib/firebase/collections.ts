@@ -1,10 +1,9 @@
-import {
-  collection,
-  doc,
-  type CollectionReference,
-  type DocumentData,
-  type FirestoreDataConverter,
-  type QueryDocumentSnapshot,
+import { collection, doc } from "firebase/firestore";
+import type {
+  CollectionReference,
+  DocumentData,
+  FirestoreDataConverter,
+  QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type {
