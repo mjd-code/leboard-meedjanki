@@ -7,7 +7,7 @@ import { Settings, Sun, Moon, Palette, LogIn, LogOut, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { PRESETS } from "@/components/admin/AdminAppearanceTab";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { apiFetch, removeLocalToken } from "@/lib/api";
+import { removeLocalToken } from "@/lib/auth";
 import { trackEvent } from "@/lib/analytics";
 
 interface FloatingSettingsFabProps {
@@ -84,7 +84,6 @@ export function FloatingSettingsFab({
                 </button>
                 <button
                   onClick={async () => {
-                    await apiFetch("/api/logout", { method: "POST" });
                     removeLocalToken();
                     queryClient.setQueryData(["auth"], { authenticated: false });
                     trackEvent("admin_logout", { isAdmin: true });
