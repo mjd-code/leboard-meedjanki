@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "../../lib/api";
+import { BlogPostsAPI, StudentsAPI, GoalsAPI } from "@/hooks/queries";
 import type { Post, Student } from "../../lib/types";
 import Link from "next/link";
 import {
@@ -45,33 +44,13 @@ function todayLabel() {
 }
 
 export function LandingPage() {
-  const { data: allPosts = [] } = useQuery<Post[]>({
-    queryKey: ["public-posts"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/posts");
-      if (!res.ok) throw new Error("Failed to fetch posts");
-      const all: Post[] = await res.json();
-      return all.filter((p) => p.status === "published");
-    },
-  });
-
-  const { data: students = [] } = useQuery<Student[]>({
-    queryKey: ["public-students"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/students");
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
-
-  const { data: masterGoals = [] } = useQuery<any[]>({
-    queryKey: ["public-master-goals"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/masterGoals");
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
+  const { data: postsRaw = [] } = BlogPostsAPI.useList();
+  const allPosts: Post[] = React.useMemo(
+    () => (postsRaw as Post[]).filter((p) => p.status === "published"),
+    [postsRaw],
+  );
+  const { data: students = [] } = StudentsAPI.useList() as { data: Student[] };
+  const { data: masterGoals = [] } = GoalsAPI.useList();
 
   // Categories
   const categoryCounts = React.useMemo(() => {
