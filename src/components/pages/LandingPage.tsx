@@ -119,9 +119,9 @@ export function LandingPage() {
           );
           if (goalData) {
             const pts =
-              goalData.points !== undefined
-                ? goalData.points
-                : goalData.pointValue || goalData.pts || 0;
+              (goalData as any).points !== undefined
+                ? (goalData as any).points
+                : (goalData as any).pointValue || (goalData as any).pts || 0;
             const numPts =
               typeof pts === "number" ? pts : parseInt(String(pts), 10);
             return total + (isNaN(numPts) ? 0 : numPts);
@@ -151,16 +151,12 @@ export function LandingPage() {
 
   const topStudents = sortedStudents.slice(0, 8);
 
-  // Stats Hook
+  // Stats Hook — visitor metrics now come from GA4. Article reads default to summed view counters.
   const [statsRange, setStatsRange] = React.useState("today");
-  const { data: analytics } = useQuery({
-    queryKey: ["public-analytics", statsRange],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/stats?range=${statsRange}`);
-      if (!res.ok) throw new Error("Fetch failed");
-      return res.json();
-    },
-  });
+  const analytics = React.useMemo(
+    () => ({ uniqueVisitors: 0, articleReads: 0 }),
+    [statsRange],
+  );
 
   // Stats
   const totalViews = allPosts.reduce(
