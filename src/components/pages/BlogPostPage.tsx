@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../../lib/api';
+import { BlogPostsAPI } from '@/hooks/queries';
+import { trackArticleView } from '@/lib/firebase/tracking';
 import type { Post } from '../../lib/types';
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays, Clock, User, ArrowRight, Eye } from 'lucide-react';
@@ -23,27 +23,16 @@ function readingTime(html?: string) {
 }
 
 export function BlogPostPage({ slug }: { slug: string }) {
-  const { data: allPosts = [] } = useQuery<Post[]>({
-    queryKey: ['public-posts'],
-    queryFn: async () => {
-      const res = await apiFetch('/api/posts');
-      if (!res.ok) throw new Error('Failed to fetch posts');
-      const all: Post[] = await res.json();
-      return all.filter((p) => p.status === 'published');
-    },
-  });
-
-  const { data: post, isLoading } = useQuery<Post>({
-    queryKey: ['public-post', slug],
-    queryFn: async () => {
-      const res = await apiFetch('/api/posts');
-      if (!res.ok) throw new Error('Failed to fetch posts');
-      const all: Post[] = await res.json();
-      const match = all.find(p => p.slug === slug || p.id === slug);
-      if (!match || match.status !== 'published') throw new Error('Post not found');
-      return match;
-    }
-  });
+  const { data: rawPosts = [] } = BlogPostsAPI.useList();
+  const allPosts = React.useMemo(
+    () => (rawPosts as Post[]).filter((p) => p.status === 'published'),
+    [rawPosts],
+  );
+  const post = React.useMemo(
+    () => allPosts.find((p) => p.slug === slug || p.id === slug),
+    [allPosts, slug],
+  );
+  const isLoading = !rawPosts.length;
 
   // Reading progress (sticky bar at top)
   const [progress, setProgress] = React.useState(0);
@@ -55,11 +44,7 @@ export function BlogPostPage({ slug }: { slug: string }) {
       // only count once per session
       if (!sessionStorage.getItem(KEY)) {
         sessionStorage.setItem(KEY, '1');
-        apiFetch('/api/track-article', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postId: post.id })
-        }).catch(console.error);
+        trackArticleView(post.id);
       }
     }
   }, [post?.id]);

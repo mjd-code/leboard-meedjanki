@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "../../lib/api";
+import { BlogPostsAPI, StudentsAPI, GoalsAPI } from "@/hooks/queries";
 import type { Post, Student } from "../../lib/types";
 import Link from "next/link";
 import {
@@ -45,33 +44,13 @@ function todayLabel() {
 }
 
 export function LandingPage() {
-  const { data: allPosts = [] } = useQuery<Post[]>({
-    queryKey: ["public-posts"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/posts");
-      if (!res.ok) throw new Error("Failed to fetch posts");
-      const all: Post[] = await res.json();
-      return all.filter((p) => p.status === "published");
-    },
-  });
-
-  const { data: students = [] } = useQuery<Student[]>({
-    queryKey: ["public-students"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/students");
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
-
-  const { data: masterGoals = [] } = useQuery<any[]>({
-    queryKey: ["public-master-goals"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/masterGoals");
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-  });
+  const { data: postsRaw = [] } = BlogPostsAPI.useList();
+  const allPosts: Post[] = React.useMemo(
+    () => (postsRaw as Post[]).filter((p) => p.status === "published"),
+    [postsRaw],
+  );
+  const { data: students = [] } = StudentsAPI.useList() as { data: Student[] };
+  const { data: masterGoals = [] } = GoalsAPI.useList();
 
   // Categories
   const categoryCounts = React.useMemo(() => {
@@ -140,9 +119,9 @@ export function LandingPage() {
           );
           if (goalData) {
             const pts =
-              goalData.points !== undefined
-                ? goalData.points
-                : goalData.pointValue || goalData.pts || 0;
+              (goalData as any).points !== undefined
+                ? (goalData as any).points
+                : (goalData as any).pointValue || (goalData as any).pts || 0;
             const numPts =
               typeof pts === "number" ? pts : parseInt(String(pts), 10);
             return total + (isNaN(numPts) ? 0 : numPts);
@@ -172,16 +151,12 @@ export function LandingPage() {
 
   const topStudents = sortedStudents.slice(0, 8);
 
-  // Stats Hook
+  // Stats Hook — visitor metrics now come from GA4. Article reads default to summed view counters.
   const [statsRange, setStatsRange] = React.useState("today");
-  const { data: analytics } = useQuery({
-    queryKey: ["public-analytics", statsRange],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/stats?range=${statsRange}`);
-      if (!res.ok) throw new Error("Fetch failed");
-      return res.json();
-    },
-  });
+  const analytics = React.useMemo(
+    () => ({ uniqueVisitors: 0, articleReads: 0 }),
+    [statsRange],
+  );
 
   // Stats
   const totalViews = allPosts.reduce(

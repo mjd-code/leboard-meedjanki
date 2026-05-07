@@ -3,7 +3,12 @@
 // Backend-agnostic: operates on the domain types defined in src/lib/types.ts.
 // ---------------------------------------------------------------------------
 import type { Group, Category, MasterGoal } from "@/types";
-import { apiFetch } from "@/lib/api";
+import { bulkWrite } from "@/lib/firebase/queries";
+import {
+  categoriesCol,
+  goalsCol,
+  groupsCol,
+} from "@/lib/firebase/collections";
 
 /** Stable id used to bucket orphaned Categories (no groupId). */
 export const FALLBACK_GROUP_ID = "__ungrouped__";
@@ -144,23 +149,18 @@ export interface ReorderItem { id: string; order: number }
 export async function persistReorder(
   endpoint: "/api/groups/reorder" | "/api/categories/reorder" | "/api/masterGoals/reorder",
   items: { id: string }[],
-  parent?: { groupId?: string; categoryId?: string },
+  _parent?: { groupId?: string; categoryId?: string },
 ): Promise<void> {
-  const payload: any = {
-    items: items.map((it, idx): ReorderItem => ({ id: it.id, order: idx })),
-  };
-  if (parent?.groupId) payload.groupId = parent.groupId;
-  if (parent?.categoryId) payload.categoryId = parent.categoryId;
+  const ref =
+    endpoint === "/api/groups/reorder"
+      ? groupsCol
+      : endpoint === "/api/categories/reorder"
+      ? categoriesCol
+      : goalsCol;
+  const rows = items.map((it, idx) => ({ id: it.id, order: idx } as any));
   try {
-    const res = await apiFetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(`Reorder failed: ${res.statusText}`);
+    await bulkWrite(ref, rows, "merge");
   } catch (err) {
-    // Surface a non-blocking warning. Caller already updated UI optimistically.
-    // The next refresh will reconcile if persistence failed.
     console.warn("[persistReorder]", endpoint, err);
     throw err;
   }

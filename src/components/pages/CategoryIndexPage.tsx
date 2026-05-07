@@ -3,9 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { BlogPostsAPI } from '@/hooks/queries';
 import type { Post } from '@/lib/types';
 import { slugifyCategory } from '@/lib/categorySlug';
 
@@ -18,15 +17,11 @@ interface CategoryBucket {
 }
 
 export function CategoryIndexPage() {
-  const { data: posts = [], isLoading } = useQuery<Post[]>({
-    queryKey: ['public-posts'],
-    queryFn: async () => {
-      const res = await apiFetch('/api/posts');
-      if (!res.ok) throw new Error('Failed to fetch posts');
-      const all: Post[] = await res.json();
-      return all.filter((p) => p.status === 'published');
-    },
-  });
+  const { data: rawPosts = [], isLoading } = BlogPostsAPI.useList();
+  const posts: Post[] = React.useMemo(
+    () => (rawPosts as Post[]).filter((p) => p.status === 'published'),
+    [rawPosts],
+  );
 
   const buckets: CategoryBucket[] = React.useMemo(() => {
     const map = new Map<string, CategoryBucket>();

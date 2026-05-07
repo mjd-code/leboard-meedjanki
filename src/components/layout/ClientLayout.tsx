@@ -10,7 +10,7 @@ import {
 } from "@/components/admin/AdminAppearanceTab";
 import { useAuthQuery, useAppDataQuery } from "@/hooks/useAppQueries";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { apiFetch, removeLocalToken } from "@/lib/api";
+import { removeLocalToken } from "@/lib/auth";
 import { setAnalyticsAdminFlag } from "@/lib/analytics";
 import { ImageFallback } from "@/components/ImageFallback";
 import { ScrollToTop } from "@/components/ui/ScrollToTop";
