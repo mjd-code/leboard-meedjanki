@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { apiFetch, setLocalToken } from "../../lib/api";
+import { setLocalToken } from "@/lib/auth";
+import { loginAdmin } from "@/lib/auth-login";
 
 export // --- LOGIN PAGE ---
 function LoginPage({
@@ -21,14 +22,9 @@ function LoginPage({
     setError("");
 
     try {
-      const res = await apiFetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token) setLocalToken(data.token);
+      const result = await loginAdmin(email, password);
+      if (result.ok && result.token) {
+        setLocalToken(result.token);
         onLogin();
       } else {
         setError("Kata sandi salah. Silakan coba lagi.");
