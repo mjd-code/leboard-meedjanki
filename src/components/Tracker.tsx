@@ -3,39 +3,41 @@
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
+import { sendGAEvent } from '@next/third-parties/google';
 
+/**
+ * Lightweight tracker:
+ * 1. GA4 handles unique visitors, sessions, demographics (via GoogleAnalytics component).
+ * 2. This component only increments per-post view counters in Firebase
+ *    when a user lands on /blog/[slug].
+ */
 export function Tracker() {
   const pathname = usePathname();
-  const reportedPaths = useRef(new Set<string>());
+  const trackedSlugs = useRef(new Set<string>());
 
   useEffect(() => {
     if (!pathname) return;
 
-    if (!reportedPaths.current.has(pathname)) {
-      reportedPaths.current.add(pathname);
+    // Only track blog post views for the per-post counter
+    const blogMatch = pathname.match(/^\/blog\/([^/]+)$/);
+    if (!blogMatch) return;
 
-      // Simple unique visitor logic using localStorage
-      let isUnique = false;
-      const TRACK_KEY = 'ppmh_visitor_id';
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(TRACK_KEY);
-        if (!stored) {
-          localStorage.setItem(TRACK_KEY, Date.now().toString());
-          isUnique = true;
-        } else {
-          // Check if unique today? E.g., track-visit unique_hits can be "new visitors today"
-          // We'll consider them unique once per browser.
-        }
-      }
+    const slug = blogMatch[1];
+    if (trackedSlugs.current.has(slug)) return;
+    trackedSlugs.current.add(slug);
 
-      // Track visit
-      apiFetch('/api/track-visit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ isUnique })
-      }).catch(console.error);
+    // Increment the post's view counter in Firebase
+    apiFetch('/api/track-article', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    }).catch(console.error);
+
+    // Also send a custom GA4 event for article reads (optional enrichment)
+    try {
+      sendGAEvent('event', 'article_view', { slug });
+    } catch {
+      // GA4 might not be loaded if no measurement ID
     }
   }, [pathname]);
 

@@ -5,6 +5,7 @@ import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ReactQueryClientProvider } from "@/components/providers/ReactQueryClientProvider";
 import { Toaster } from "sonner";
 import { Tracker } from "@/components/Tracker";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <body>
+        <GoogleAnalytics />
         <ReactQueryClientProvider>
           <ClientLayout>
             {children}

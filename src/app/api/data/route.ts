@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// Phase 4 Quota Shield: cache this route segment at the edge for 1 hour so
+// repeat visits never hit Firestore for global/static data.
+export const revalidate = 3600;
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,

@@ -1,12 +1,4 @@
-import { initializeApp, getApps } from "firebase/app";
-import firebaseConfig from "../../firebase-applet-config.json";
-
-function initApp() {
-  const apps = getApps();
-  const defaultApp = apps.find((a: any) => a.name === '[DEFAULT]');
-  if (defaultApp) return defaultApp;
-  return initializeApp(firebaseConfig);
-}
-
-const app = initApp();
-export { app };
+// Phase 1 unification: re-export the single env-driven Firebase app.
+// All other modules MUST import from here (or src/lib/firebase/config) — no
+// more JSON config files, no hardcoded project ids.
+export { app, auth, db, firebaseConfig } from "./firebase/config";

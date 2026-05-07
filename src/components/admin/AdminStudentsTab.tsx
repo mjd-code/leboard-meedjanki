@@ -299,7 +299,7 @@ function GoalAuditCard({
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent
-                          className="w-auto p-0 z-[80]"
+                          className="w-auto p-0 z-[200]"
                           align="start"
                         >
                           <Calendar
@@ -1163,7 +1163,7 @@ function StudentAdminModal({
                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="p-0 w-[260px]" align="end">
+                <PopoverContent className="p-0 w-[260px] z-[200]" align="end">
                   <Command>
                     <CommandInput placeholder="Cari grup..." />
                     <CommandList>
