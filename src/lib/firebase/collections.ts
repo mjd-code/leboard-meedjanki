@@ -1,44 +1,16 @@
+// Plain Firestore collection / doc references. No converters — readers must
+// run mappers from ./mappers to translate snake_case <-> camelCase.
+
 import { collection, doc } from "firebase/firestore";
 import { db } from "./firebase";
-import type {
-  AdminUser,
-  Category,
-  Group,
-  MasterGoal,
-  Post,
-  Student,
-  StudentAchievement,
-} from "@/types";
 
-/**
- * Generic id-aware converter: keeps `id` on read, strips it on write so the
- * stored document never duplicates the doc id as a field.
- */
-function idConverter<T extends { id: string }>(): any {
-  return {
-    toFirestore(model: T): any {
-      const { id: _omit, ...rest } = model as any;
-      return rest;
-    },
-    fromFirestore(snap: any): T {
-      return { id: snap.id, ...(snap.data() as any) } as T;
-    },
-  };
-}
-
-function typedCol<T extends { id: string }>(name: string) {
-  return collection(db, name).withConverter(idConverter<T>());
-}
-
-export const studentsCol = typedCol<Student>("students");
-export const goalsCol = typedCol<MasterGoal>("master_goals");
-export const categoriesCol = typedCol<Category>("categories");
-export const groupsCol = typedCol<Group>("groups");
-export const blogPostsCol = typedCol<Post>("posts");
-export const adminUsersCol = typedCol<AdminUser>("admin_users");
-export const achievementsCol = typedCol<StudentAchievement>("student_achievements");
-
-// Loosely-typed event/log collections (analytics is schemaless in practice).
+export const studentsCol = collection(db, "students");
+export const goalsCol = collection(db, "master_goals");
+export const categoriesCol = collection(db, "categories");
+export const groupsCol = collection(db, "groups");
+export const blogPostsCol = collection(db, "posts");
+export const adminUsersCol = collection(db, "admin_users");
+export const achievementsCol = collection(db, "student_achievements");
 export const pageViewsCol = collection(db, "page_views");
 export const appEventsCol = collection(db, "events");
 export const activityLogsCol = collection(db, "logs");
