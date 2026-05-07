@@ -1,10 +1,4 @@
 import { collection, doc } from "firebase/firestore";
-import type {
-  CollectionReference,
-  DocumentData,
-  FirestoreDataConverter,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
 import { db } from "./firebase";
 import type {
   AdminUser,
@@ -20,19 +14,19 @@ import type {
  * Generic id-aware converter: keeps `id` on read, strips it on write so the
  * stored document never duplicates the doc id as a field.
  */
-function idConverter<T extends { id: string }>(): FirestoreDataConverter<T> {
+function idConverter<T extends { id: string }>(): any {
   return {
-    toFirestore(model: T): DocumentData {
+    toFirestore(model: T): any {
       const { id: _omit, ...rest } = model as any;
       return rest;
     },
-    fromFirestore(snap: QueryDocumentSnapshot): T {
+    fromFirestore(snap: any): T {
       return { id: snap.id, ...(snap.data() as any) } as T;
     },
   };
 }
 
-function typedCol<T extends { id: string }>(name: string): CollectionReference<T> {
+function typedCol<T extends { id: string }>(name: string) {
   return collection(db, name).withConverter(idConverter<T>());
 }
 
