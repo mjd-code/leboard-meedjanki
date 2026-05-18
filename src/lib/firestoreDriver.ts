@@ -157,9 +157,9 @@ export function connectFirestore(connId: string, config: FirebaseConfig): Firest
   const databaseId = config.firestoreDatabaseId || config.databaseId || "(default)";
   let db: Firestore;
   try {
-    db = initializeFirestore(app, { experimentalForceLongPolling: true }, databaseId);
+    db = initializeFirestore(app as any, { experimentalForceLongPolling: true }, databaseId);
   } catch {
-    db = getFirestore(app, databaseId);
+    db = getFirestore(app as any, databaseId);
   }
   dbCache.set(connId, db);
   return db;
@@ -168,7 +168,7 @@ export function connectFirestore(connId: string, config: FirebaseConfig): Firest
 export function disposeFirestore(connId: string) {
   const app = appCache.get(connId);
   if (app) {
-    deleteApp(app).catch(() => {});
+    deleteApp(app as any).catch(() => {});
   }
   appCache.delete(connId);
   dbCache.delete(connId);
