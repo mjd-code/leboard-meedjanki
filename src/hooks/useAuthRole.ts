@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLocalToken } from "@/lib/auth";
-import { resolveCurrentUser } from "@/lib/auth-login";
+import { apiFetch } from "@/lib/api";
 
 type AdminRole = "super_admin" | "admin";
 
@@ -22,9 +21,18 @@ export function useAuthRole() {
 
     async function check() {
       try {
-        const u = await resolveCurrentUser(getLocalToken());
-        if (active) setUser(u as any);
-      } catch {
+        const res = await apiFetch("/api/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user && active) {
+            setUser(data.user);
+          } else if (active) {
+            setUser(null);
+          }
+        } else if (active) {
+          setUser(null);
+        }
+      } catch (err) {
         if (active) setUser(null);
       } finally {
         if (active) setLoading(false);

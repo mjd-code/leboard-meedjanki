@@ -25,18 +25,12 @@ import {
   doc,
   getDoc,
   getDocs,
-  getDocsFromCache,
-  getDocsFromServer,
-  getCountFromServer,
   setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
-  writeBatch,
   query,
   limit as fsLimit,
-  startAfter as fsStartAfter,
-  orderBy as fsOrderBy,
 } from "firebase/firestore";
 
 // Local structural stand-ins. The firebase package re-exports these names as
@@ -160,17 +154,12 @@ export function connectFirestore(connId: string, config: FirebaseConfig): Firest
     app = initializeApp(config, connId);
   }
   appCache.set(connId, app);
-  // Phase 1: NEVER pass the literal "(default)" string. Empty/missing →
-  // omit the arg entirely so Firestore SDK targets the native default DB.
-  const rawId = config.firestoreDatabaseId || config.databaseId || "";
-  const databaseId = rawId && rawId !== "(default)" ? rawId : "";
+  const databaseId = config.firestoreDatabaseId || config.databaseId || "(default)";
   let db: Firestore;
   try {
-    db = databaseId
-      ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, databaseId)
-      : initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    db = initializeFirestore(app, { experimentalForceLongPolling: true }, databaseId);
   } catch {
-    db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+    db = getFirestore(app, databaseId);
   }
   dbCache.set(connId, db);
   return db;
@@ -366,63 +355,11 @@ export async function fsSelect(
   connId: string,
   config: FirebaseConfig,
   table: string,
-  max = 100, // Phase 2 Quota Shield: default cap to 100 docs per read.
+  max = 1000,
 ): Promise<any[]> {
   const db = connectFirestore(connId, config);
-  const q = query(collection(db, table), fsLimit(max));
-  // Phase 3: try IndexedDB cache first; fall back to server fetch on miss.
-  try {
-    const cached = await getDocsFromCache(q);
-    if (!cached.empty) {
-      // Refresh in background so subsequent reads are fresh without blocking.
-      getDocsFromServer(q).catch(() => {});
-      return cached.docs.map(snapshotToRow);
-    }
-  } catch {
-    /* cache unavailable (SSR, private mode) — fall through */
-  }
-  const snaps = await getDocs(q);
+  const snaps = await getDocs(query(collection(db, table), fsLimit(max)));
   return snaps.docs.map(snapshotToRow);
-}
-
-/**
- * Phase 2: Cursor-based pagination. Pass the last doc's id from the previous
- * page as `afterId` to fetch the next page without re-reading prior pages.
- * Requires an `orderBy` field that exists on every doc (defaults to `id`).
- */
-export async function fsSelectPage(
-  connId: string,
-  config: FirebaseConfig,
-  table: string,
-  opts: { pageSize?: number; afterId?: string; orderField?: string } = {},
-): Promise<{ rows: any[]; nextCursor: string | null }> {
-  const db = connectFirestore(connId, config);
-  const pageSize = opts.pageSize ?? 100;
-  const orderField = opts.orderField ?? "__name__";
-  const parts: any[] = [fsOrderBy(orderField), fsLimit(pageSize)];
-  if (opts.afterId) {
-    const cursorSnap = await getDoc(doc(db, table, opts.afterId));
-    if (cursorSnap.exists()) parts.splice(1, 0, fsStartAfter(cursorSnap));
-  }
-  const q = query(collection(db, table), ...parts);
-  const snaps = await getDocs(q);
-  const rows = snaps.docs.map(snapshotToRow);
-  const nextCursor = rows.length === pageSize ? rows[rows.length - 1].id : null;
-  return { rows, nextCursor };
-}
-
-/**
- * Phase 2: Quota-friendly count using Firestore's native aggregation.
- * Avoids fetching every doc just to read `.size` / `.length`.
- */
-export async function fsCount(
-  connId: string,
-  config: FirebaseConfig,
-  table: string,
-): Promise<number> {
-  const db = connectFirestore(connId, config);
-  const snap = await getCountFromServer(collection(db, table));
-  return snap.data().count;
 }
 
 export async function fsInsert(
@@ -435,28 +372,18 @@ export async function fsInsert(
   if (!rows.length) return [];
   const db = connectFirestore(connId, config);
   const out: any[] = [];
-
-  // Phase 4: Use writeBatch for rows that have explicit ids (chunks of 450 to
-  // stay under Firestore's 500-op batch ceiling). Auto-id rows still go
-  // through addDoc so we can return the generated ids.
-  const withId = rows.filter((r) => r && r.id != null);
-  const noId = rows.filter((r) => !r || r.id == null);
-
-  for (let i = 0; i < withId.length; i += 450) {
-    const chunk = withId.slice(i, i + 450);
-    const batch = writeBatch(db);
-    for (const row of chunk) {
-      const { id, ...rest } = row;
-      batch.set(doc(db, table, String(id)), rest, { merge: !!opts?.upsert });
+  for (const row of rows) {
+    const { id, ...rest } = row || {};
+    if (id) {
+      // Use deterministic id; setDoc with merge=true acts as upsert.
+      await setDoc(doc(db, table, String(id)), rest, {
+        merge: !!opts?.upsert,
+      });
+      out.push({ id, ...rest });
+    } else {
+      const ref = await addDoc(collection(db, table), rest);
+      out.push({ id: ref.id, ...rest });
     }
-    await batch.commit();
-    chunk.forEach((row) => out.push({ ...row }));
-  }
-
-  for (const row of noId) {
-    const { id: _drop, ...rest } = row || {};
-    const ref = await addDoc(collection(db, table), rest);
-    out.push({ id: ref.id, ...rest });
   }
   return out;
 }
@@ -551,12 +478,5 @@ export async function fsDeleteAll(
 ): Promise<void> {
   const db = connectFirestore(connId, config);
   const snaps = await getDocs(collection(db, table));
-  // Phase 4: chunked writeBatch instead of N parallel deleteDoc calls.
-  const docs = snaps.docs;
-  for (let i = 0; i < docs.length; i += 450) {
-    const chunk = docs.slice(i, i + 450);
-    const batch = writeBatch(db);
-    chunk.forEach((d: any) => batch.delete(d.ref));
-    await batch.commit();
-  }
+  await Promise.all(snaps.docs.map((d: any) => deleteDoc(d.ref)));
 }

@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronRight, Clock, Star, Flame, TrendingUp, LayoutGrid } from 'lucide-react';
-import { BlogPostsAPI } from '@/hooks/queries';
+import { apiFetch } from '@/lib/api';
 import type { Post } from '@/lib/types';
 import { matchesCategorySlug, slugifyCategory } from '@/lib/categorySlug';
 import { CategoryChips } from '@/components/ui/CategoryChips';
@@ -20,11 +21,15 @@ function formatDate(d?: string | null) {
 const PAGE_SIZE = 9;
 
 export function CategoryPage({ slug }: { slug: string }) {
-  const { data: rawPosts = [], isLoading } = BlogPostsAPI.useList();
-  const posts: Post[] = React.useMemo(
-    () => (rawPosts as Post[]).filter((p) => p.status === 'published'),
-    [rawPosts],
-  );
+  const { data: posts = [], isLoading } = useQuery<Post[]>({
+    queryKey: ['public-posts'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/posts');
+      if (!res.ok) throw new Error('Failed to fetch posts');
+      const all: Post[] = await res.json();
+      return all.filter((p) => p.status === 'published');
+    },
+  });
 
   const inCategory = React.useMemo(
     () => posts.filter((p) => matchesCategorySlug(p.category, slug)),

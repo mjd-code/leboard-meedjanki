@@ -116,7 +116,7 @@ export function AdminDashboard({
       <div className="flex flex-col gap-6">
         {/* Scrollable Horizontal Tabs */}
         <div className="sticky top-0 md:top-16 z-30 bg-card/95 backdrop-blur-sm rounded-2xl border border-border overflow-x-auto no-scrollbar scrollbar-hide snap-x px-2 py-1 shadow-soft">
-          <div className="flex items-center gap-2 sm:gap-4 border-b border-border min-w-max px-4 sm:px-0">
+          <div className="flex items-center gap-2 sm:gap-4 border-border min-w-max px-4 sm:px-0">
             {[
               { id: "students", label: "Santri", icon: Users, show: true },
               {
@@ -171,10 +171,10 @@ export function AdminDashboard({
                     if (navigator.vibrate) navigator.vibrate(50);
                     setActiveTab(tab.id);
                   }}
-                  className={`group flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 min-h-11 font-bold text-base sm:text-lg transition-all whitespace-nowrap active:scale-95 border-b-[3px] snap-start ${
+                  className={`group flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 min-h-11 font-bold text-base sm:text-lg transition-all whitespace-nowrap active:scale-95 snap-start ${
                     activeTab === tab.id
-                      ? "border-primary-600 text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <tab.icon

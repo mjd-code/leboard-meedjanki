@@ -95,10 +95,7 @@ import { useAuthRole } from "@/hooks/useAuthRole";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Check, Layers } from "lucide-react";
 import type { StudentAchievement } from "@/lib/types";
-import {
-  buildHierarchy,
-  sortByOrder,
-} from "@/lib/hierarchy";
+import { buildHierarchy, sortByOrder } from "@/lib/hierarchy";
 
 // ---------------------------------------------------------------------------
 // Inline collapsible audit card — replaces the legacy CompletionAuditPanel.
@@ -248,7 +245,7 @@ function GoalAuditCard({
         </button>
 
         <div className="flex gap-2 shrink-0">
-          <button
+          {/* <button
             type="button"
             onClick={onToggleAssign}
             className={`p-2 rounded-xl transition-all ${assigned ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}
@@ -259,7 +256,7 @@ function GoalAuditCard({
             ) : (
               <Square className="w-5 h-5" />
             )}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -321,7 +318,10 @@ function GoalAuditCard({
                       <PopoverSelect
                         value={markerId}
                         onValueChange={setMarkerId}
-                        options={adminOptions.map((a) => ({ value: a.id, label: a.name }))}
+                        options={adminOptions.map((a) => ({
+                          value: a.id,
+                          label: a.name,
+                        }))}
                         placeholder="Pilih admin"
                         className="h-10"
                       />
@@ -679,8 +679,7 @@ function StudentAdminModal({
 
   const [tagInput, setTagInput] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [bulkConfirm, setBulkConfirm] = useState<{
     kind: "assign" | "unassign" | "complete" | "uncomplete";
     title: string;
@@ -721,25 +720,30 @@ function StudentAdminModal({
     }
   }, [activeGroupNode, selectedGroupId]);
   const activeCategories = activeGroupNode?.categories ?? [];
-  const activeCategoryNode = useMemo(() => {
-    if (!activeCategories.length) return null;
-    return (
-      activeCategories.find((c) => c.category.id === selectedCategoryId) ??
-      activeCategories[0]
-    );
-  }, [activeCategories, selectedCategoryId]);
-  useEffect(() => {
-    if (
-      activeCategoryNode &&
-      activeCategoryNode.category.id !== selectedCategoryId
-    ) {
-      setSelectedCategoryId(activeCategoryNode.category.id);
-    }
-  }, [activeCategoryNode, selectedCategoryId]);
+  // Multi-select: empty = all categories in the active group
+  const effectiveCategoryIds = useMemo(() => {
+    if (selectedCategoryIds.length === 0)
+      return activeCategories.map((c) => c.category.id);
+    const valid = new Set(activeCategories.map((c) => c.category.id));
+    return selectedCategoryIds.filter((id) => valid.has(id));
+  }, [selectedCategoryIds, activeCategories]);
+  const activeCategoryNodes = useMemo(
+    () =>
+      activeCategories.filter((c) =>
+        effectiveCategoryIds.includes(c.category.id),
+      ),
+    [activeCategories, effectiveCategoryIds],
+  );
   // Flat list of goals visible after filter — drives bulk-action helpers below.
   const displayedMasterGoals: MasterGoal[] = useMemo(
-    () => activeCategoryNode?.goals ?? [],
-    [activeCategoryNode],
+    () => activeCategoryNodes.flatMap((c) => c.goals),
+    [activeCategoryNodes],
+  );
+  // All goals across all groups/categories — for the global bulk-assign action.
+  const allGoalIds: string[] = useMemo(
+    () =>
+      tree.flatMap((g) => g.categories.flatMap((c) => c.goals.map((x) => x.id))),
+    [tree],
   );
 
   const isAssigned = (goalId: string) =>
@@ -862,7 +866,14 @@ function StudentAdminModal({
   const allVisibleCompleted =
     visibleAssignedCount > 0 && visibleCompletedCount === visibleAssignedCount;
   const activeGroupName = activeGroupNode?.group.name ?? "—";
-  const activeCategoryName = activeCategoryNode?.category.name ?? "—";
+  const activeCategoryName =
+    activeCategoryNodes.length === 0
+      ? "—"
+      : activeCategoryNodes.length === 1
+        ? activeCategoryNodes[0].category.name
+        : selectedCategoryIds.length === 0
+          ? `Semua kategori (${activeCategoryNodes.length})`
+          : `${activeCategoryNodes.length} kategori`;
   const scopeLabel = activeCategoryName;
   const studentLabel = formData.name?.trim() || "this student";
 
@@ -1138,7 +1149,7 @@ function StudentAdminModal({
             </div>
           </div>
 
-          {/* Goal Selector — flattened: Group (Combobox) → Category (Tabs) → Goals */}
+          {/* Goal Selector — Group tabs → Category tabs (multi-select) → Goals */}
           <div className="flex-1 border-border lg:border-l lg:pl-8 pt-8 lg:pt-0 min-w-0">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
               <div>
@@ -1149,64 +1160,108 @@ function StudentAdminModal({
                   Atur tugas untuk Santri ini
                 </p>
               </div>
-              {/* Group Combobox */}
-              <Popover open={groupPickerOpen} onOpenChange={setGroupPickerOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 bg-secondary rounded-xl h-10 px-4 text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors min-w-[220px] justify-between"
-                  >
-                    <span className="inline-flex items-center gap-2 truncate">
-                      <Layers className="w-4 h-4 text-muted-foreground" />
-                      <span className="truncate">{activeGroupName}</span>
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 w-[260px] z-[200]" align="end">
-                  <Command>
-                    <CommandInput placeholder="Cari grup..." />
-                    <CommandList>
-                      <CommandEmpty>Tidak ada grup.</CommandEmpty>
-                      <CommandGroup>
-                        {tree.map((node) => (
-                          <CommandItem
-                            key={node.group.id}
-                            value={node.group.name}
-                            onSelect={() => {
-                              setSelectedGroupId(node.group.id);
-                              setSelectedCategoryId(null);
-                              setGroupPickerOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                node.group.id === activeGroupNode?.group.id
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                            <span className="truncate">{node.group.name}</span>
-                            <span className="ml-auto text-[10px] font-bold text-muted-foreground">
-                              {node.categories.flatMap((c) => c.goals).length}
-                            </span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              {/* Global assign-all-from-all-groups */}
+              {allGoalIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const count = allGoalIds.length;
+                    setBulkConfirm({
+                      kind: "assign",
+                      title: `Assign all ${count} goals from all groups?`,
+                      message: `Tugaskan SELURUH ${count} goals dari semua group dan category kepada ${studentLabel}? Goals yang sudah ditugaskan tidak akan diduplikasi.`,
+                      onConfirm: () => {
+                        setFormData((prev) => {
+                          const existing = new Set(
+                            prev.assignedGoals.map((ag) => ag.goalId),
+                          );
+                          const additions = allGoalIds
+                            .filter((id) => !existing.has(id))
+                            .map((id) => ({ goalId: id, completed: false }));
+                          if (!additions.length) return prev;
+                          return {
+                            ...prev,
+                            assignedGoals: [
+                              ...prev.assignedGoals,
+                              ...additions,
+                            ],
+                          };
+                        });
+                        setBulkConfirm(null);
+                      },
+                    });
+                  }}
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground rounded-xl h-10 px-4 text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                  title="Tugaskan semua goals dari semua group & category"
+                >
+                  <Layers className="w-4 h-4" />
+                  Tugaskan Semua (All Groups)
+                </button>
+              )}
             </div>
 
-            {/* Category chips (horizontal scroll) */}
+            {/* Group tabs */}
+            {tree.length > 0 && (
+              <div className="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 min-w-max pb-1">
+                  {tree.map((node) => {
+                    const active = node.group.id === activeGroupNode?.group.id;
+                    const totalGoals = node.categories.flatMap(
+                      (c) => c.goals,
+                    ).length;
+                    return (
+                      <button
+                        key={node.group.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGroupId(node.group.id);
+                          setSelectedCategoryIds([]);
+                        }}
+                        className={cn(
+                          "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
+                          active
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border text-foreground/70 hover:border-foreground",
+                        )}
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>{node.group.name}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] font-black px-1.5 rounded-full",
+                            active
+                              ? "bg-background/20"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          {totalGoals}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Category tabs (multi-select) */}
             {activeCategories.length > 0 && (
               <div className="mb-4 -mx-1 px-1 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-2 min-w-max pb-1">
+                <div className="flex gap-2 min-w-max pb-1 items-center">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategoryIds([])}
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
+                      selectedCategoryIds.length === 0
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background border-border text-foreground/70 hover:border-foreground",
+                    )}
+                  >
+                    Semua
+                  </button>
                   {activeCategories.map((catNode) => {
                     const cid = catNode.category.id;
-                    const active = cid === activeCategoryNode?.category.id;
+                    const active = selectedCategoryIds.includes(cid);
                     const assignedCount = catNode.goals.filter((g) =>
                       isAssigned(g.id),
                     ).length;
@@ -1214,7 +1269,13 @@ function StudentAdminModal({
                       <button
                         key={cid}
                         type="button"
-                        onClick={() => setSelectedCategoryId(cid)}
+                        onClick={() =>
+                          setSelectedCategoryIds((prev) =>
+                            prev.includes(cid)
+                              ? prev.filter((x) => x !== cid)
+                              : [...prev, cid],
+                          )
+                        }
                         className={cn(
                           "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
                           active

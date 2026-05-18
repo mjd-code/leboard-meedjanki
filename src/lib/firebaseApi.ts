@@ -24,18 +24,6 @@ import { SEED_POSTS, SEED_CATEGORIES } from './seed/blogSeedData';
 const ADMIN_PASSWORD = "janki_app";
 const TOKEN_VALUE = "client-admin-token";
 
-// Phase 2: Hardcoded app settings — eliminates Firestore reads on every page load.
-const DEFAULT_APP_SETTINGS = {
-  primaryColor: { h: 144, s: 29, l: 20 },
-  accentColor: { h: 34, s: 62, l: 57 },
-  bgColor: { h: 79, s: 29, l: 92 },
-  textColor: { h: 144, s: 18, l: 15 },
-  appName: "Tiny Tree",
-  badgeTitle: "Bonsai Collection",
-  heroTitle: "Bonsai",
-  heroSubtitle: "The fascinating and amazing world of Bonsai.",
-};
-
 // --- Response helpers ---
 const ok = (body: any = { success: true }, status = 200): Response =>
   new Response(JSON.stringify(body), {
@@ -187,8 +175,14 @@ const logAction = async (
   details: string,
   type: "education" | "system",
 ) => {
-  // Phase 1: Migrated to GA4 / console — no more Firestore writes.
-  console.log(`[audit] ${type} | ${action} | ${details}`);
+  try {
+    const conn = getActiveConnection();
+    await connInsertReturning(conn, "activity_logs", [
+      { action, details, type, timestamp: new Date().toISOString() },
+    ]);
+  } catch (e) {
+    console.warn("log failed", e);
+  }
 };
 
 // --- Stats ---
@@ -216,10 +210,11 @@ const computeStats = async (range: string, from?: string | null, to?: string | n
     }
   }
 
-  const [studentsRes, catRes, goalsRes] = await Promise.all([
+  const [studentsRes, catRes, goalsRes, viewsRes] = await Promise.all([
     connSelect(conn, "students").catch(() => []),
     connSelect(conn, "categories").catch(() => []),
     connSelect(conn, "master_goals").catch(() => []),
+    connSelect(conn, "page_views").catch(() => []),
   ]);
 
   const masterPoints = new Map<string, number>();
@@ -247,10 +242,19 @@ const computeStats = async (range: string, from?: string | null, to?: string | n
     });
   });
 
-  // Phase 1: Visitor/hit metrics now handled by GA4 — return zeros.
-  const totalHits = 0;
-  const uniqueVisitors = 0;
-  const articleReads = 0;
+  let totalHits = 0;
+  let uniqueVisitors = 0;
+  let articleReads = 0;
+
+  (viewsRes || []).forEach((v: any) => {
+    if (!v.date) return;
+    const d = new Date(v.date);
+    if (d >= cutoff && (!endCutoff || d <= endCutoff)) {
+      totalHits += (v.hits || 0);
+      uniqueVisitors += (v.unique_hits || Math.ceil((v.hits || 0) * 0.3)); // mock if missing
+      articleReads += (v.article_reads || 0);
+    }
+  });
 
   const chartData = Object.keys(chartMap)
     .sort()
@@ -364,10 +368,23 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
 
     // ===== SETTINGS =====
     if (path === "/api/settings" && method === "GET") {
-      return ok(DEFAULT_APP_SETTINGS);
+      const rows = await connSelectQuery(
+        conn,
+        "settings",
+        "select=data&id=eq.appearance",
+      ).catch(() => []);
+      return ok(rows[0]?.data || {});
     }
     if (path === "/api/settings" && method === "PUT") {
-      console.log("[settings] PUT received (no-op, settings are hardcoded)", body);
+      const payload = body || {};
+      await connUpsertReturning(conn, "settings", [
+        { id: "appearance", data: payload },
+      ], "id");
+      logAction(
+        "Theme Applied",
+        "Admin applied new theme and branding settings",
+        "system",
+      );
       return ok();
     }
 
@@ -535,43 +552,70 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
 
     // ===== TRACK VISIT =====
     if (path === "/api/track-visit" && method === "POST") {
-      // Phase 1: Visit tracking migrated to GA4 — no Firestore write.
+      const today = new Date().toISOString().split("T")[0];
+      const isUnique = !!body?.isUnique;
+      const existing = await connSelectQuery(
+        conn,
+        "page_views",
+        `select=*&date=eq.${today}`, // Get all fields
+      ).catch(() => []);
+      
+      const hits = (existing[0]?.hits || 0) + 1;
+      const unique_hits = (existing[0]?.unique_hits || 0) + (isUnique ? 1 : 0);
+      const article_reads = existing[0]?.article_reads || 0; // Preserve
+
+      await connUpsertReturning(conn, "page_views", [{ date: today, hits, unique_hits, article_reads }], "date");
       return ok();
     }
 
     if (path === "/api/track-article" && method === "POST") {
+      const today = new Date().toISOString().split("T")[0];
       const postId = body?.postId;
-      const slug = body?.slug;
+      
+      // 1. increment global daily article reads
+      const existingDaily = await connSelectQuery(conn, "page_views", `select=*&date=eq.${today}`).catch(() => []);
+      const article_reads = (existingDaily[0]?.article_reads || 0) + 1;
+      const hits = existingDaily[0]?.hits || 0;
+      const unique_hits = existingDaily[0]?.unique_hits || 0;
+      await connUpsertReturning(conn, "page_views", [{ date: today, hits, unique_hits, article_reads }], "date");
 
-      // Keep per-post organic_views increment; daily page_views removed — GA4 handles it.
-      const lookupQuery = slug
-        ? `select=*&slug=eq.${slug}`
-        : postId
-          ? `select=*&id=eq.${postId}`
-          : null;
-
-      if (lookupQuery) {
-        const existingPost = await connSelectQuery(conn, "posts", lookupQuery).catch(()=>[]);
+      // 2. increment specific post's organic_views
+      if (postId) {
+        const existingPost = await connSelectQuery(conn, "posts", `id=eq.${postId}`).catch(()=>[]);
         if (existingPost && existingPost[0]) {
            const organic = (existingPost[0].organic_views || 0) + 1;
-           await connUpdate(conn, "posts", `id=eq.${existingPost[0].id}`, { organic_views: organic });
+           await connUpdate(conn, "posts", `id=eq.${postId}`, { organic_views: organic });
         }
       }
       return ok();
     }
 
     // ===== LOGS =====
-    if (path === "/api/logs" && method === "POST") { console.log("[audit-log]", body); return ok({success: true}); }
+    if (path === "/api/logs" && method === "POST") { await connInsertReturning(conn, "activity_logs", [{ id: "log-"+Date.now(), timestamp: new Date().toISOString(), ...body }]).catch(()=>[]); return ok({success: true}); }
     if (path === "/api/logs" && method === "GET") {
-      return ok([]);
+      const rows = await connSelectQuery(
+        conn,
+        "activity_logs",
+        "select=*&order=timestamp.desc&limit=500",
+      ).catch(() => []);
+      return ok(rows);
     }
 
     // ===== EVENTS =====
     if (path === "/api/events" && method === "GET") {
-      return ok([]);
+      const rows = await connSelectQuery(
+        conn,
+        "app_events",
+        "select=*&order=created_at.desc&limit=500",
+      ).catch(() => []);
+      return ok(rows);
     }
     if (path === "/api/events" && method === "POST") {
-      // Phase 1: App events migrated to GA4 — no Firestore write.
+      // Do NOT pass a custom string id — `app_events.id` is uuid with a
+      // gen_random_uuid() default. Strip any client-supplied id to let the
+      // database generate a valid UUID.
+      const { id: _ignored, ...eventBody } = (body ?? {}) as Record<string, unknown>;
+      await connInsertReturning(conn, "app_events", [eventBody]).catch(() => []);
       return ok({ success: true });
     }
 

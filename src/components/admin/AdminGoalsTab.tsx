@@ -29,7 +29,7 @@ import {
   FALLBACK_CATEGORY_ID,
   type HierarchyGroupNode,
 } from "@/lib/hierarchy";
-import { SortableList, DragHandle, SortableRow } from "./editor/sortable";
+import { DragHandle, SortableRow } from "./editor/sortable";
 import {
   DndContext,
   closestCenter,
@@ -269,6 +269,71 @@ export function AdminGoalsTab({
     }
   };
 
+  // Cross-category goal move: PUT goal with new category, then reorder both lists.
+  const moveGoalToCategory = async (
+    goalId: string,
+    destCategoryId: string,
+    destIndex: number,
+  ) => {
+    const goal = masterGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+    const destCat = categories.find((c) => c.id === destCategoryId);
+
+    // Resolve current category id for the goal.
+    const srcCategoryId =
+      goal.categoryId ||
+      categories.find(
+        (c) => c.name && goal.categoryName && c.name.toLowerCase() === goal.categoryName.toLowerCase(),
+      )?.id ||
+      FALLBACK_CATEGORY_ID;
+
+    if (srcCategoryId === destCategoryId) return;
+
+    try {
+      await apiFetch(`/api/masterGoals/${goalId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...goal,
+          categoryId: destCategoryId === FALLBACK_CATEGORY_ID ? null : destCategoryId,
+          categoryName: destCat?.name || goal.categoryName,
+        }),
+      });
+    } catch (e) {
+      console.warn("move goal failed", e);
+    }
+
+    // Build dest list with new goal inserted at destIndex.
+    const destSiblings = sortByOrder(
+      masterGoals.filter((g) => {
+        if (g.id === goalId) return false;
+        if (g.categoryId) return g.categoryId === destCategoryId;
+        const cat = categories.find(
+          (c) => c.name && g.categoryName && c.name.toLowerCase() === g.categoryName.toLowerCase(),
+        );
+        return cat ? cat.id === destCategoryId : destCategoryId === FALLBACK_CATEGORY_ID;
+      }),
+    );
+    const destNext = [...destSiblings];
+    destNext.splice(Math.min(destIndex, destNext.length), 0, { ...goal, id: goalId } as MasterGoal);
+    await persistGoalOrder(destCategoryId, destNext.map((g) => ({ id: g.id })));
+
+    // Reorder src list (without moved goal) so its order stays compact.
+    const srcSiblings = sortByOrder(
+      masterGoals.filter((g) => {
+        if (g.id === goalId) return false;
+        if (g.categoryId) return g.categoryId === srcCategoryId;
+        const cat = categories.find(
+          (c) => c.name && g.categoryName && c.name.toLowerCase() === g.categoryName.toLowerCase(),
+        );
+        return cat ? cat.id === srcCategoryId : srcCategoryId === FALLBACK_CATEGORY_ID;
+      }),
+    );
+    if (srcCategoryId !== FALLBACK_CATEGORY_ID) {
+      await persistGoalOrder(srcCategoryId, srcSiblings.map((g) => ({ id: g.id })));
+    }
+  };
+
   // ---- RENDER ------------------------------------------------------------
   return (
     <div className="p-4 sm:p-8">
@@ -321,8 +386,11 @@ export function AdminGoalsTab({
         tree={tree}
         groups={groups}
         categories={categories}
+        masterGoals={masterGoals}
         persistGroupOrder={persistGroupOrder}
         persistCategoryOrder={persistCategoryOrder}
+        persistGoalOrder={persistGoalOrder}
+        moveGoalToCategory={moveGoalToCategory}
         moveCategoryToGroup={async (catId, destGroupId, destIndex) => {
           // Optimistic-ish: send full ordered list of dest group with new cat inserted at index, plus updated categoryGroup PUT.
           const cat = categories.find((c) => c.id === catId);
@@ -481,19 +549,15 @@ export function AdminGoalsTab({
                 {catExpanded && (
                   <motion.div layout initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
                     <CardContent className="p-3 pt-0 border-t border-border/40 bg-card">
-                      {catNode.goals.length === 0 ? (
-                        <p className="text-xs text-muted-foreground italic text-center py-6">Tidak ada tugas di kategori ini.</p>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                          <SortableList
-                            items={catNode.goals.map((g: MasterGoal) => ({ id: g.id, mg: g }))}
-                            strategy="grid"
-                            onReorder={(next) => persistGoalOrder(catId, next.map((x: any) => ({ id: x.id })))}
-                          >
-                            {(item: any) => {
-                              const mg = item.mg as MasterGoal;
-                              return (
-                                <Card key={mg.id} className="rounded-xl border border-border shadow-none hover:shadow-soft transition-shadow group relative">
+                      <GoalGridDropZone categoryId={catId} isEmpty={catNode.goals.length === 0}>
+                        <SortableContext
+                          items={catNode.goals.map((g) => `t:${g.id}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            {catNode.goals.map((mg: MasterGoal) => (
+                              <SortableRow key={mg.id} id={`t:${mg.id}`}>
+                                <Card className="rounded-xl border border-border shadow-none hover:shadow-soft transition-shadow group relative">
                                   <CardContent className="p-3 space-y-2">
                                     <div className="flex justify-between items-start gap-2">
                                       <div className="flex items-start gap-1 flex-1 pt-1">
@@ -515,11 +579,11 @@ export function AdminGoalsTab({
                                     )}
                                   </CardContent>
                                 </Card>
-                              );
-                            }}
-                          </SortableList>
-                        </div>
-                      )}
+                              </SortableRow>
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </GoalGridDropZone>
                     </CardContent>
                   </motion.div>
                 )}
@@ -582,14 +646,18 @@ export function AdminGoalsTab({
 // SortableList inside each category, fully isolated.
 // ---------------------------------------------------------------------------
 type CatMoveFn = (catId: string, destGroupId: string, destIndex: number) => Promise<void> | void;
+type GoalMoveFn = (goalId: string, destCategoryId: string, destIndex: number) => Promise<void> | void;
 
 function UnifiedHierarchyDnd({
   tree,
   groups,
   categories,
+  masterGoals,
   persistGroupOrder,
   persistCategoryOrder,
+  persistGoalOrder,
   moveCategoryToGroup,
+  moveGoalToCategory,
   renderGroupHeader,
   renderGroupBody,
   renderCategory,
@@ -599,9 +667,12 @@ function UnifiedHierarchyDnd({
   tree: HierarchyGroupNode[];
   groups: Group[];
   categories: Category[];
+  masterGoals: MasterGoal[];
   persistGroupOrder: (next: { id: string }[]) => Promise<void> | void;
   persistCategoryOrder: (groupId: string, next: { id: string }[]) => Promise<void> | void;
+  persistGoalOrder: (categoryId: string, next: { id: string }[]) => Promise<void> | void;
   moveCategoryToGroup: CatMoveFn;
+  moveGoalToCategory: GoalMoveFn;
   renderGroupHeader: (node: HierarchyGroupNode, gi: number) => React.ReactNode;
   renderGroupBody: (node: HierarchyGroupNode) => React.ReactNode;
   renderCategory: (node: HierarchyGroupNode, catNode: HierarchyGroupNode["categories"][number], ci: number) => React.ReactNode;
@@ -622,10 +693,20 @@ function UnifiedHierarchyDnd({
     return m;
   }, [localTree]);
 
+  const goalIdToCatId = React.useMemo(() => {
+    const m = new Map<string, string>();
+    localTree.forEach((g) =>
+      g.categories.forEach((c) => c.goals.forEach((goal) => m.set(goal.id, c.category.id))),
+    );
+    return m;
+  }, [localTree]);
+
   const gid = (id: string) => `g:${id}`;
   const cid = (id: string) => `c:${id}`;
+  const tid = (id: string) => `t:${id}`;
   const isGroupId = (id: string) => id.startsWith("g:");
   const isCatId = (id: string) => id.startsWith("c:");
+  const isGoalId = (id: string) => id.startsWith("t:");
   const stripPrefix = (id: string) => id.slice(2);
 
   const handleDragEnd = async (e: DragEndEvent) => {
@@ -634,6 +715,68 @@ function UnifiedHierarchyDnd({
     const aId = String(active.id);
     const oId = String(over.id);
     if (aId === oId) return;
+
+    // ---- GOAL DRAG (cross-category supported) ----------------------------
+    if (isGoalId(aId)) {
+      const goalRaw = stripPrefix(aId);
+      const srcCat = goalIdToCatId.get(goalRaw);
+      if (!srcCat) return;
+
+      let destCat: string | undefined;
+      let destIndex = 0;
+      if (isGoalId(oId)) {
+        destCat = goalIdToCatId.get(stripPrefix(oId));
+        if (!destCat) return;
+        const sib = localTree
+          .flatMap((g) => g.categories)
+          .find((c) => c.category.id === destCat)?.goals || [];
+        destIndex = sib.findIndex((g) => g.id === stripPrefix(oId));
+        if (destIndex < 0) destIndex = sib.length;
+      } else if (oId.startsWith("gdrop:")) {
+        destCat = oId.slice(6);
+        const sib = localTree
+          .flatMap((g) => g.categories)
+          .find((c) => c.category.id === destCat)?.goals || [];
+        destIndex = sib.length;
+      } else if (isCatId(oId)) {
+        destCat = stripPrefix(oId);
+        const sib = localTree
+          .flatMap((g) => g.categories)
+          .find((c) => c.category.id === destCat)?.goals || [];
+        destIndex = sib.length;
+      }
+      if (!destCat) return;
+
+      setLocalTree((prev) => {
+        const copy = prev.map((g) => ({
+          ...g,
+          categories: g.categories.map((c) => ({ ...c, goals: [...c.goals] })),
+        }));
+        const allCats = copy.flatMap((g) => g.categories);
+        const sc = allCats.find((c) => c.category.id === srcCat);
+        const dc = allCats.find((c) => c.category.id === destCat);
+        if (!sc || !dc) return prev;
+        const idx = sc.goals.findIndex((g) => g.id === goalRaw);
+        if (idx < 0) return prev;
+        const [moved] = sc.goals.splice(idx, 1);
+        const insertAt = Math.min(destIndex, dc.goals.length);
+        dc.goals.splice(insertAt, 0, moved);
+        return copy;
+      });
+
+      if (srcCat === destCat) {
+        const list = localTree
+          .flatMap((g) => g.categories)
+          .find((c) => c.category.id === srcCat)?.goals || [];
+        const ids = list.map((g) => g.id);
+        const oldIdx = ids.indexOf(goalRaw);
+        const next = arrayMove(ids, oldIdx, destIndex);
+        await persistGoalOrder(srcCat, next.map((id) => ({ id })));
+      } else {
+        await moveGoalToCategory(goalRaw, destCat, destIndex);
+      }
+      return;
+    }
 
     if (isGroupId(aId) && isGroupId(oId)) {
       const ids = localTree.map((g) => g.group.id);
@@ -807,7 +950,35 @@ function GroupCategoryDropZone({
   );
 }
 
-// ---- GROUP MODAL ---------------------------------------------------------
+function GoalGridDropZone({
+  categoryId,
+  isEmpty,
+  children,
+}: {
+  categoryId: string;
+  isEmpty: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `gdrop:${categoryId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={
+        "rounded-xl transition-colors " +
+        (isOver ? "bg-primary/5 ring-2 ring-primary/40 ring-offset-2 ring-offset-background " : "") +
+        (isEmpty ? "min-h-[80px] border-2 border-dashed border-border/60 p-3 mt-3" : "")
+      }
+    >
+      {isEmpty ? (
+        <p className="text-xs text-muted-foreground italic text-center py-4">
+          Tidak ada tugas di kategori ini. Seret tugas ke sini.
+        </p>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
 function GroupAdminModal({
   group,
   onClose,

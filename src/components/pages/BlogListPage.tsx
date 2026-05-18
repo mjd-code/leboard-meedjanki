@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { BlogPostsAPI } from "@/hooks/queries";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../../lib/api";
 import type { Post } from "../../lib/types";
 import Link from "next/link";
 import {
@@ -30,11 +31,15 @@ function formatDate(d?: string | null) {
 const PAGE_SIZE = 9;
 
 export function BlogListPage() {
-  const { data: rawPosts = [], isLoading } = BlogPostsAPI.useList();
-  const posts: Post[] = React.useMemo(
-    () => (rawPosts as Post[]).filter((p) => p.status === "published"),
-    [rawPosts],
-  );
+  const { data: posts = [], isLoading } = useQuery<Post[]>({
+    queryKey: ["public-posts"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/posts");
+      if (!res.ok) throw new Error("Failed to fetch posts");
+      const all: Post[] = await res.json();
+      return all.filter((p) => p.status === "published");
+    },
+  });
 
   // Discovery state
   const [search, setSearch] = React.useState("");
@@ -166,7 +171,7 @@ export function BlogListPage() {
                     <Link
                       key={post.id}
                       href={`/blog/${post.slug || post.id}`}
-                      className="snap-start shrink-0 w-[240px] sm:w-[320px] flex flex-col group"
+                      className="snap-start shrink-0 w-[200px] flex flex-col group"
                     >
                       <ImageWithFallback
                         src={post.featured_image || null}
@@ -192,11 +197,11 @@ export function BlogListPage() {
                           views
                         </div>
                       </div>
-                      <h3 className="font-display text-xs md:text-lg font-bold text-foreground leading-snug line-clamp-2 md:line-clamp-3 group-hover:text-primary transition-colors text-pretty">
+                      <h3 className="font-display text-sm md:text-lg font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
                         {post.title}
                       </h3>
                       {post.excerpt && (
-                        <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed sm:block">
+                        <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                           {post.excerpt}
                         </p>
                       )}
@@ -243,11 +248,11 @@ export function BlogListPage() {
                           <time>{formatDate(post.published_at)}</time>
                         </div>
                       </div>
-                      <h3 className="font-display text-xs sm:text-xl font-bold text-foreground leading-snug line-clamp-2 sm:line-clamp-3 group-hover:text-primary transition-colors text-pretty">
+                      <h3 className="font-display text-sm sm:text-xl font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
                         {post.title}
                       </h3>
                       {post.excerpt && (
-                        <p className="mt-2 text-xs sm:text-base text-muted-foreground line-clamp-2 leading-relaxed sm:block">
+                        <p className="mt-2 text-xs sm:text-base text-muted-foreground line-clamp-2 leading-relaxed">
                           {post.excerpt}
                         </p>
                       )}

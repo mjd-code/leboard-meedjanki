@@ -1,50 +1,96 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { BlogPostsAPI } from '@/hooks/queries';
-import { trackArticleView } from '@/lib/firebase/tracking';
-import type { Post } from '../../lib/types';
-import Link from 'next/link';
-import { ArrowLeft, CalendarDays, Clock, User, ArrowRight, Eye } from 'lucide-react';
-import { HScroller, HScrollItem } from '@/components/ui/HScroller';
-import { ArticleCard } from '@/components/ui/ArticleCard';
-import { BlogContent } from '@/components/blog/BlogContent';
-import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../../lib/api";
+import type { Post } from "../../lib/types";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Clock,
+  User,
+  ArrowRight,
+  Eye,
+} from "lucide-react";
+import { HScroller, HScrollItem } from "@/components/ui/HScroller";
+import { ArticleCard } from "@/components/ui/ArticleCard";
+import { BlogContent } from "@/components/blog/BlogContent";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
 function formatDate(d?: string | null) {
-  return d ? new Date(d).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+  return d
+    ? new Date(d).toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "-";
 }
 
 function readingTime(html?: string) {
-  if (!html) return '1 mnt';
-  const text = html.replace(/<[^>]+>/g, ' ');
+  if (!html) return "1 mnt";
+  const text = html.replace(/<[^>]+>/g, " ");
   const words = text.trim().split(/\s+/).length;
   return `${Math.max(1, Math.round(words / 200))} mnt baca`;
 }
 
 export function BlogPostPage({ slug }: { slug: string }) {
-  const { data: rawPosts = [] } = BlogPostsAPI.useList();
-  const allPosts = React.useMemo(
-    () => (rawPosts as Post[]).filter((p) => p.status === 'published'),
-    [rawPosts],
-  );
-  const post = React.useMemo(
-    () => allPosts.find((p) => p.slug === slug || p.id === slug),
-    [allPosts, slug],
-  );
-  const isLoading = !rawPosts.length;
+  const { data: allPosts = [] } = useQuery<Post[]>({
+    queryKey: ["public-posts"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/posts");
+      if (!res.ok) throw new Error("Failed to fetch posts");
+      const all: Post[] = await res.json();
+      return all.filter((p) => p.status === "published");
+    },
+  });
+
+  // Resolve author_id → full_name via admin_users
+  const { data: admins = [] } = useQuery<Array<{ id: string; full_name?: string; email?: string }>>({
+    queryKey: ["public-admin-authors"],
+    queryFn: async () => {
+      try {
+        const res = await apiFetch("/api/admin_users");
+        if (!res.ok) return [];
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.users || data.admins || [];
+        return list;
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: post, isLoading } = useQuery<Post>({
+    queryKey: ["public-post", slug],
+    queryFn: async () => {
+      const res = await apiFetch("/api/posts");
+      if (!res.ok) throw new Error("Failed to fetch posts");
+      const all: Post[] = await res.json();
+      const match = all.find((p) => p.slug === slug || p.id === slug);
+      if (!match || match.status !== "published")
+        throw new Error("Post not found");
+      return match;
+    },
+  });
 
   // Reading progress (sticky bar at top)
   const [progress, setProgress] = React.useState(0);
-  
+
   // Track article read
   React.useEffect(() => {
     if (post && post.id) {
       const KEY = `ppmh_read_${post.id}`;
       // only count once per session
       if (!sessionStorage.getItem(KEY)) {
-        sessionStorage.setItem(KEY, '1');
-        trackArticleView(post.id);
+        sessionStorage.setItem(KEY, "1");
+        apiFetch("/api/track-article", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: post.id }),
+        }).catch(console.error);
       }
     }
   }, [post?.id]);
@@ -54,14 +100,16 @@ export function BlogPostPage({ slug }: { slug: string }) {
       const h = document.documentElement;
       const scrolled = h.scrollTop;
       const max = h.scrollHeight - h.clientHeight;
-      setProgress(max > 0 ? Math.min(100, Math.max(0, (scrolled / max) * 100)) : 0);
+      setProgress(
+        max > 0 ? Math.min(100, Math.max(0, (scrolled / max) * 100)) : 0,
+      );
     };
     onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
@@ -69,9 +117,16 @@ export function BlogPostPage({ slug }: { slug: string }) {
   const related = React.useMemo(() => {
     if (!post) return [];
     const others = allPosts.filter((p) => p.id !== post.id);
-    const sameCat = others.filter((p) => (p.category || '') === (post.category || ''));
+    const sameCat = others.filter(
+      (p) => (p.category || "") === (post.category || ""),
+    );
     return sameCat
-      .sort((a, b) => ((b.organic_views || 0) + (b.offset_views || 0)) - ((a.organic_views || 0) + (a.offset_views || 0)))
+      .sort(
+        (a, b) =>
+          (b.organic_views || 0) +
+          (b.offset_views || 0) -
+          ((a.organic_views || 0) + (a.offset_views || 0)),
+      )
       .slice(0, 5);
   }, [post, allPosts]);
 
@@ -99,13 +154,13 @@ export function BlogPostPage({ slug }: { slug: string }) {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "NewsArticle",
-              "headline": post.title,
-              "image": post.featured_image ? [post.featured_image] : [],
-              "datePublished": post.published_at,
-              "dateModified": post.updated_at,
-              "description": post.excerpt || post.title,
-              "publisher": { "@type": "Organization", "name": "PPMH Insight" }
-            })
+              headline: post.title,
+              image: post.featured_image ? [post.featured_image] : [],
+              datePublished: post.published_at,
+              dateModified: post.updated_at,
+              description: post.excerpt || post.title,
+              publisher: { "@type": "Organization", name: "PPMH Insight" },
+            }),
           }}
         />
       )}
@@ -132,8 +187,12 @@ export function BlogPostPage({ slug }: { slug: string }) {
           </div>
         ) : !post ? (
           <div className="text-center py-24 border border-dashed border-border rounded-2xl mt-4">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">Artikel tidak ditemukan</h2>
-            <p className="text-muted-foreground font-serif-body italic text-sm sm:text-base">Mungkin artikel telah dipindahkan atau dihapus.</p>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">
+              Artikel tidak ditemukan
+            </h2>
+            <p className="text-muted-foreground font-serif-body italic text-sm sm:text-base">
+              Mungkin artikel telah dipindahkan atau dihapus.
+            </p>
           </div>
         ) : (
           <article className="mt-2">
@@ -146,17 +205,26 @@ export function BlogPostPage({ slug }: { slug: string }) {
               )}
               <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
                 <CalendarDays className="w-3.5 h-3.5" />
-                <time dateTime={post.published_at || ''}>{formatDate(post.published_at)}</time>
+                <time dateTime={post.published_at || ""}>
+                  {formatDate(post.published_at)}
+                </time>
               </div>
-              <span className="text-muted-foreground/30 text-[10px] sm:text-xs hidden sm:inline">•</span>
+              <span className="text-muted-foreground/30 text-[10px] sm:text-xs hidden sm:inline">
+                •
+              </span>
               <div className="flex gap-4 sm:gap-4 ml-auto sm:ml-0">
                 <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
                   <Clock className="w-3.5 h-3.5" />
                   <span>{readingTime(post.content)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium" title="Total Views">
+                <div
+                  className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium"
+                  title="Total Views"
+                >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>{(post.organic_views || 0) + (post.offset_views || 0)} views</span>
+                  <span>
+                    {(post.organic_views || 0) + (post.offset_views || 0)} views
+                  </span>
                 </div>
               </div>
             </div>
@@ -178,8 +246,22 @@ export function BlogPostPage({ slug }: { slug: string }) {
                   <User className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">Penulis</div>
-                  <div className="text-sm font-semibold text-foreground">{(post as any).author || post.author_id}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">
+                    Penulis
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {(() => {
+                      const authorId =
+                        (post as any).author || post.author_id || "";
+                      const match = admins.find((a) => a.id === authorId);
+                      return (
+                        match?.full_name ||
+                        match?.email ||
+                        authorId ||
+                        "Anonim"
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
@@ -187,11 +269,11 @@ export function BlogPostPage({ slug }: { slug: string }) {
             {/* Featured Image */}
             {post.featured_image && (
               <figure className="my-8 sm:my-12 -mx-4 sm:mx-0">
-                <ImageWithFallback 
-                  src={post.featured_image || null} 
-                  alt={post.title} 
+                <ImageWithFallback
+                  src={post.featured_image || null}
+                  alt={post.title}
                   fallbackType="gradient"
-                  fill 
+                  fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 800px"
                   containerClassName="w-full aspect-[4/3] sm:aspect-[16/9] sm:rounded-3xl shadow-sm"
@@ -229,12 +311,19 @@ export function BlogPostPage({ slug }: { slug: string }) {
 
             {/* Suggestions / Related Posts */}
             {related.length > 0 && (
-              <aside className="mt-16 sm:mt-24 pt-12 border-t border-border/40" aria-label="Saran postingan lain">
+              <aside
+                className="mt-16 sm:mt-24 pt-12 border-t border-border/40"
+                aria-label="Saran postingan lain"
+              >
                 <div className="flex items-center justify-between gap-4 mb-8">
                   <div className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-widest">
-                    <ArrowRight className="w-4 h-4 text-primary" /> Lanjutkan Membaca
+                    <ArrowRight className="w-4 h-4 text-primary" /> Lanjutkan
+                    Membaca
                   </div>
-                  <Link href="/blog" className="text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:underline">
+                  <Link
+                    href="/blog"
+                    className="text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:underline"
+                  >
                     Semua Artikel
                   </Link>
                 </div>
@@ -244,7 +333,7 @@ export function BlogPostPage({ slug }: { slug: string }) {
                     <Link
                       key={rp.id}
                       href={`/blog/${rp.slug || rp.id}`}
-                      className="snap-start shrink-0 w-[240px] sm:w-[320px] flex flex-col group"
+                      className="snap-start shrink-0 w-[200px] flex flex-col group"
                     >
                       <ImageWithFallback
                         src={rp.featured_image || null}
@@ -261,16 +350,20 @@ export function BlogPostPage({ slug }: { slug: string }) {
                             {rp.category}
                           </span>
                         )}
-                        <span className="text-muted-foreground/30 text-[10px]">•</span>
+                        <span className="text-muted-foreground/30 text-[10px]">
+                          •
+                        </span>
                         <div className="flex items-center text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          <Eye className="w-3 h-3 mr-1" /> {(rp.organic_views || 0) + (rp.offset_views || 0)} views
+                          <Eye className="w-3 h-3 mr-1" />{" "}
+                          {(rp.organic_views || 0) + (rp.offset_views || 0)}{" "}
+                          views
                         </div>
                       </div>
-                      <h3 className="font-display text-base sm:text-lg font-bold text-foreground leading-snug line-clamp-2 md:line-clamp-3 group-hover:text-primary transition-colors text-pretty">
+                      <h3 className="font-display text-base sm:text-lg font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
                         {rp.title}
                       </h3>
                       {rp.excerpt && (
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed hidden sm:block">
+                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                           {rp.excerpt}
                         </p>
                       )}

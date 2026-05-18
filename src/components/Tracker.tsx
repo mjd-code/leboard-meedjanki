@@ -2,38 +2,40 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { trackArticleView } from '@/lib/firebase/tracking';
-import { sendGAEvent } from '@next/third-parties/google';
+import { apiFetch } from '@/lib/api';
 
-/**
- * Lightweight tracker:
- * 1. GA4 handles unique visitors, sessions, demographics (via GoogleAnalytics component).
- * 2. This component only increments per-post view counters in Firebase
- *    when a user lands on /blog/[slug].
- */
 export function Tracker() {
   const pathname = usePathname();
-  const trackedSlugs = useRef(new Set<string>());
+  const reportedPaths = useRef(new Set<string>());
 
   useEffect(() => {
     if (!pathname) return;
 
-    // Only track blog post views for the per-post counter
-    const blogMatch = pathname.match(/^\/blog\/([^/]+)$/);
-    if (!blogMatch) return;
+    if (!reportedPaths.current.has(pathname)) {
+      reportedPaths.current.add(pathname);
 
-    const slug = blogMatch[1];
-    if (trackedSlugs.current.has(slug)) return;
-    trackedSlugs.current.add(slug);
+      // Simple unique visitor logic using localStorage
+      let isUnique = false;
+      const TRACK_KEY = 'ppmh_visitor_id';
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(TRACK_KEY);
+        if (!stored) {
+          localStorage.setItem(TRACK_KEY, Date.now().toString());
+          isUnique = true;
+        } else {
+          // Check if unique today? E.g., track-visit unique_hits can be "new visitors today"
+          // We'll consider them unique once per browser.
+        }
+      }
 
-    // Increment the post's view counter directly in Firestore.
-    trackArticleView(slug);
-
-    // Also send a custom GA4 event for article reads (optional enrichment)
-    try {
-      sendGAEvent('event', 'article_view', { slug });
-    } catch {
-      // GA4 might not be loaded if no measurement ID
+      // Track visit
+      apiFetch('/api/track-visit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isUnique })
+      }).catch(console.error);
     }
   }, [pathname]);
 
