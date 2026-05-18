@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       unique: session.isNew || isFirstReadInWindow,
       ts: Date.now(),
     });
-    let res = NextResponse.json(
+    let res: NextResponse = NextResponse.json(
       { ok: true, unique: isFirstReadInWindow },
       { headers: CORS },
     );
