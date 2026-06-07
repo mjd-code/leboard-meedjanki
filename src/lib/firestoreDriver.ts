@@ -12,12 +12,7 @@
 // Each connection gets its own named FirebaseApp so multiple Firestore
 // projects can coexist with the Supabase ones.
 
-import {
-  initializeApp,
-  getApp,
-  getApps,
-  deleteApp,
-} from "firebase/app";
+import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
 import {
   getFirestore,
   initializeFirestore,
@@ -37,7 +32,11 @@ import {
 // namespaces in some bundler configs which breaks `type` imports. We only
 // need an opaque shape for our internal cache/maps.
 type FirebaseOptions = Record<string, any>;
-type FirebaseApp = { name: string; options: any; automaticDataCollectionEnabled?: boolean };
+type FirebaseApp = {
+  name: string;
+  options: any;
+  automaticDataCollectionEnabled?: boolean;
+};
 type Firestore = any;
 
 export type FirebaseConfig = FirebaseOptions & {
@@ -144,7 +143,10 @@ export function parseFirebaseConfig(input: string): FirebaseConfig {
 }
 
 /** Initialize (or reuse) a FirebaseApp + Firestore instance for a connection. */
-export function connectFirestore(connId: string, config: FirebaseConfig): Firestore {
+export function connectFirestore(
+  connId: string,
+  config: FirebaseConfig,
+): Firestore {
   if (dbCache.has(connId)) return dbCache.get(connId)!;
 
   let app: FirebaseApp;
@@ -154,10 +156,15 @@ export function connectFirestore(connId: string, config: FirebaseConfig): Firest
     app = initializeApp(config, connId);
   }
   appCache.set(connId, app);
-  const databaseId = config.firestoreDatabaseId || config.databaseId || "(default)";
+  const databaseId =
+    config.firestoreDatabaseId || config.databaseId || "(default)";
   let db: Firestore;
   try {
-    db = initializeFirestore(app as any, { experimentalForceLongPolling: true }, databaseId);
+    db = initializeFirestore(
+      app as any,
+      { experimentalForceLongPolling: true },
+      databaseId,
+    );
   } catch {
     db = getFirestore(app as any, databaseId);
   }
@@ -245,14 +252,20 @@ export async function testFirestore(
     } catch (e: any) {
       const msg = String(e?.message || e);
       // Add a helpful hint when the named Firestore DB does not exist.
-      if (/NOT_FOUND|Database .* not found|database does not exist/i.test(msg)) {
+      if (
+        /NOT_FOUND|Database .* not found|database does not exist/i.test(msg)
+      ) {
         probe.readError =
           `${msg} — The Firestore database id "${
-            (config as any).firestoreDatabaseId || (config as any).databaseId || "(default)"
+            (config as any).firestoreDatabaseId ||
+            (config as any).databaseId ||
+            "(default)"
           }" was not found on project "${config.projectId}". ` +
           `Either create that database in the Firebase console (Firestore → Add database), ` +
           `or remove the "firestoreDatabaseId" field so the connection uses the (default) database.`;
-      } else if (/permission-denied|Missing or insufficient permissions/i.test(msg)) {
+      } else if (
+        /permission-denied|Missing or insufficient permissions/i.test(msg)
+      ) {
         probe.readError =
           `${msg} — Update Firestore Security Rules for project "${config.projectId}" to allow reads on collection "${name}". ` +
           `Quick test rule: \`match /{document=**} { allow read, write: if true; }\` (do NOT use in production).`;
@@ -287,7 +300,9 @@ export async function testFirestore(
   }
 
   const anyReadable = probes.some((p) => p.canRead);
-  const missingTables = probes.filter((p) => p.canRead && !p.exists).map((p) => p.name);
+  const missingTables = probes
+    .filter((p) => p.canRead && !p.exists)
+    .map((p) => p.name);
   const firstFatal = probes.find((p) => !p.canRead)?.readError;
 
   return {
@@ -312,7 +327,8 @@ export async function bootstrapFirestoreSchema(
 ): Promise<{ name: string; ok: boolean; created: boolean; error?: string }[]> {
   const db = connectFirestore(connId, config);
   const SCHEMA_ID = "__schema__";
-  const out: { name: string; ok: boolean; created: boolean; error?: string }[] = [];
+  const out: { name: string; ok: boolean; created: boolean; error?: string }[] =
+    [];
 
   for (const name of collections) {
     try {
@@ -333,7 +349,12 @@ export async function bootstrapFirestoreSchema(
       );
       out.push({ name, ok: true, created: true });
     } catch (e: any) {
-      out.push({ name, ok: false, created: false, error: String(e?.message || e) });
+      out.push({
+        name,
+        ok: false,
+        created: false,
+        error: String(e?.message || e),
+      });
     }
   }
   return out;
@@ -407,7 +428,12 @@ export async function fsTransfer(
   table: string,
   rows: any[],
   mode: FirestoreWriteMode = "merge",
-): Promise<{ written: number; skipped: number; created: number; errors: string[] }> {
+): Promise<{
+  written: number;
+  skipped: number;
+  created: number;
+  errors: string[];
+}> {
   const stats = { written: 0, skipped: 0, created: 0, errors: [] as string[] };
   if (!rows.length) return stats;
   const db = connectFirestore(connId, config);
@@ -440,7 +466,9 @@ export async function fsTransfer(
         stats.written++;
       }
     } catch (e: any) {
-      stats.errors.push(`id=${row?.id ?? "(auto)"} → ${String(e?.message || e)}`);
+      stats.errors.push(
+        `id=${row?.id ?? "(auto)"} → ${String(e?.message || e)}`,
+      );
     }
   }
   return stats;

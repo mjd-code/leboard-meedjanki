@@ -34,6 +34,7 @@ import {
 import { ImageUploader } from "../ui/ImageUploader";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "../../lib/api";
+import { mergeAssignments, dedupeAssignments } from "../../lib/assignGoals";
 import { useUpdateStudentMutation } from "../../hooks/useAppQueries";
 import { Avatar } from "../ui/custom-avatar";
 import { StudentSearchFilter } from "../StudentSearchFilter";
@@ -932,20 +933,16 @@ function StudentAdminModal({
   const bulkSetAssigned = (assign: boolean) => {
     setFormData((prev) => {
       if (assign) {
-        const existingIds = new Set(prev.assignedGoals.map((ag) => ag.goalId));
-        const additions = visibleGoalIds
-          .filter((id) => !existingIds.has(id))
-          .map((id) => ({ goalId: id, completed: false }));
-        if (additions.length === 0) return prev;
-        return {
-          ...prev,
-          assignedGoals: [...prev.assignedGoals, ...additions],
-        };
+        const merged = mergeAssignments(prev.assignedGoals, visibleGoalIds);
+        if (merged.length === prev.assignedGoals.length) return prev;
+        return { ...prev, assignedGoals: merged };
       }
       const drop = new Set(visibleGoalIds);
       return {
         ...prev,
-        assignedGoals: prev.assignedGoals.filter((ag) => !drop.has(ag.goalId)),
+        assignedGoals: dedupeAssignments(prev.assignedGoals).filter(
+          (ag) => !drop.has(ag.goalId),
+        ),
       };
     });
   };
@@ -1172,20 +1169,14 @@ function StudentAdminModal({
                       message: `Tugaskan SELURUH ${count} goals dari semua group dan category kepada ${studentLabel}? Goals yang sudah ditugaskan tidak akan diduplikasi.`,
                       onConfirm: () => {
                         setFormData((prev) => {
-                          const existing = new Set(
-                            prev.assignedGoals.map((ag) => ag.goalId),
+                          const merged = mergeAssignments(
+                            prev.assignedGoals,
+                            allGoalIds,
                           );
-                          const additions = allGoalIds
-                            .filter((id) => !existing.has(id))
-                            .map((id) => ({ goalId: id, completed: false }));
-                          if (!additions.length) return prev;
-                          return {
-                            ...prev,
-                            assignedGoals: [
-                              ...prev.assignedGoals,
-                              ...additions,
-                            ],
-                          };
+                          if (merged.length === prev.assignedGoals.length) {
+                            return prev;
+                          }
+                          return { ...prev, assignedGoals: merged };
                         });
                         setBulkConfirm(null);
                       },

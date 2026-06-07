@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo -p 3000 -H 0.0.0.0",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build && node scripts/post-build-dist.mjs",
-    "build:dev": "NODE_OPTIONS='--max-old-space-size=4096' next build && node scripts/post-build-dist.mjs",
-    "build:debug": "NODE_OPTIONS='--max-old-space-size=4096' node scripts/build-with-telemetry.mjs",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build:dev": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build:debug": "NODE_OPTIONS='--max-old-space-size=4096'",
     "start": "NODE_OPTIONS='--max-old-space-size=2048' next start -p 3000",
     "clean": "rm -rf .next && rm -rf dist",
     "clean:all": "rm -rf .next dist .next-telemetry node_modules/.cache",

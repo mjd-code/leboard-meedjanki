@@ -81,15 +81,18 @@ export function BlogPostPage({ slug }: { slug: string }) {
 
   // Track article read
   React.useEffect(() => {
-    if (!post?.id) return;
-    // Every mount = raw hit. The server uses an httpOnly cookie
-    // (ppmh_read_{id}, 24h) to decide whether this counts as a unique reader.
-    // Only posts/{id}.organic_views is incremented — offset_views is never touched.
-    apiFetch("/api/track-article", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: post.id }),
-    }).catch(() => {});
+    if (post && post.id) {
+      const KEY = `ppmh_read_${post.id}`;
+      // only count once per session
+      if (!sessionStorage.getItem(KEY)) {
+        sessionStorage.setItem(KEY, "1");
+        apiFetch("/api/track-article", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: post.id }),
+        }).catch(console.error);
+      }
+    }
   }, [post?.id]);
 
   React.useEffect(() => {

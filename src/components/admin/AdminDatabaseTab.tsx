@@ -2,11 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { apiFetch } from '../../lib/api';
+import { dedupeAssignments } from '../../lib/assignGoals';
 import { DataTable } from '@/components/ui/DataTable';
 import { PopoverSelect } from '@/components/ui/PopoverSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '../ui/ConfirmModal';
-import { Database, Loader2 } from 'lucide-react';
+import { Database, Loader2, Wand2 } from 'lucide-react';
 
 type CollectionKey = 'students' | 'masterGoals' | 'categories' | 'posts' | 'logs';
 
@@ -63,6 +64,15 @@ export function AdminDatabaseTab() {
   const queryClient = useQueryClient();
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [healPreview, setHealPreview] = useState<
+    | null
+    | {
+        affected: { id: string; name: string; before: number; after: number; dupCount: number; orphanCount: number; cleaned: any[] }[];
+        run: () => Promise<void>;
+      }
+  >(null);
+  const [healing, setHealing] = useState(false);
+  const [healResult, setHealResult] = useState<string | null>(null);
 
   const { data = [], isLoading } = useQuery<any[]>({
     queryKey: ['db-browser', meta.endpoint],
@@ -91,6 +101,68 @@ export function AdminDatabaseTab() {
     }
   };
 
+  const analyzeDuplicateAssignments = async () => {
+    setHealResult(null);
+    const [stRes, mgRes] = await Promise.all([
+      apiFetch('/api/students'),
+      apiFetch('/api/masterGoals'),
+    ]);
+    if (!stRes.ok || !mgRes.ok) {
+      setHealResult('Gagal memuat students / masterGoals.');
+      return;
+    }
+    const stJson = await stRes.json();
+    const mgJson = await mgRes.json();
+    const students: any[] = Array.isArray(stJson) ? stJson : stJson.items || stJson.data || [];
+    const masterGoals: any[] = Array.isArray(mgJson) ? mgJson : mgJson.items || mgJson.data || [];
+    const validGoalIds = new Set<string>(masterGoals.map((g) => g.id).filter(Boolean));
+
+    const clean = (list: any[] | undefined) => {
+      const deduped = dedupeAssignments(list);
+      return deduped.filter((a) => validGoalIds.has(a.goalId));
+    };
+
+    const affected = students
+      .map((s) => {
+        const before = s.assignedGoals?.length ?? 0;
+        const cleaned = clean(s.assignedGoals);
+        const after = cleaned.length;
+        const dupCount = before - dedupeAssignments(s.assignedGoals).length;
+        const orphanCount = dedupeAssignments(s.assignedGoals).length - after;
+        return { id: s.id, name: s.name || s.id, before, after, dupCount, orphanCount, cleaned };
+      })
+      .filter((row) => row.before !== row.after);
+
+    if (affected.length === 0) {
+      setHealResult(`Tidak ada masalah terdeteksi. (${validGoalIds.size} master goals aktif)`);
+      return;
+    }
+
+    setHealPreview({
+      affected,
+      run: async () => {
+        setHealing(true);
+        try {
+          let healed = 0;
+          for (const row of affected) {
+            await apiFetch(`/api/students/${row.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ assignedGoals: row.cleaned }),
+            }).catch(() => null);
+            healed += 1;
+          }
+          await queryClient.invalidateQueries({ queryKey: ['db-browser', '/api/students'] });
+          await queryClient.invalidateQueries({ queryKey: ['app-data'] });
+          setHealResult(`Selesai. ${healed} student diperbaiki.`);
+        } finally {
+          setHealing(false);
+          setHealPreview(null);
+        }
+      },
+    });
+  };
+
   return (
     <div className="p-4 sm:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -100,13 +172,31 @@ export function AdminDatabaseTab() {
           </h3>
           <p className="text-muted-foreground text-sm mt-3">Jelajahi seluruh koleksi backend dalam satu tabel terpadu.</p>
         </div>
-        <PopoverSelect
-          value={active}
-          onValueChange={(v) => setActive(v as CollectionKey)}
-          options={COLLECTIONS.map(c => ({ value: c.key, label: c.label }))}
-          className="w-full sm:w-64 h-12 rounded-xl border-border bg-card font-bold"
-        />
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={analyzeDuplicateAssignments}
+            disabled={healing}
+            className="inline-flex items-center justify-center gap-2 h-12 px-4 rounded-xl border border-border bg-card text-xs font-black uppercase tracking-widest hover:bg-muted transition-colors disabled:opacity-60"
+            title="Pindai dan perbaiki duplikasi assignedGoals pada semua student"
+          >
+            {healing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            Heal Duplicate Goals
+          </button>
+          <PopoverSelect
+            value={active}
+            onValueChange={(v) => setActive(v as CollectionKey)}
+            options={COLLECTIONS.map(c => ({ value: c.key, label: c.label }))}
+            className="w-full sm:w-64 h-12 rounded-xl border-border bg-card font-bold"
+          />
+        </div>
       </div>
+
+      {healResult && (
+        <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+          {healResult}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground gap-2">
@@ -128,6 +218,24 @@ export function AdminDatabaseTab() {
         message={`Hapus ${bulkDeleteIds?.length ?? 0} baris dari koleksi ${meta.label}? Operasi ini tidak dapat dibatalkan.`}
         onConfirm={handleBulkDelete}
         onCancel={() => !busy && setBulkDeleteIds(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!healPreview}
+        title="Perbaiki Duplikasi Goal Assignments"
+        message={
+          healPreview
+            ? `Ditemukan masalah pada ${healPreview.affected.length} student. Total perubahan:\n` +
+              healPreview.affected
+                .slice(0, 8)
+                .map((r) => `• ${r.name}: ${r.before} → ${r.after}  (dup: ${r.dupCount}, orphan: ${r.orphanCount})`)
+                .join('\n') +
+              (healPreview.affected.length > 8 ? `\n…dan ${healPreview.affected.length - 8} lainnya.` : '') +
+              '\n\nDuplikasi dikolapsasi (status completed dipertahankan) dan assignment ke goal yang sudah dihapus akan dibersihkan. Lanjutkan?'
+            : ''
+        }
+        onConfirm={() => healPreview?.run()}
+        onCancel={() => !healing && setHealPreview(null)}
       />
     </div>
   );

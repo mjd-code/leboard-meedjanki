@@ -62,23 +62,6 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
 
   const doFetch = () => {
     console.log(`[apiFetch] Calling ${url}`);
-    // Real Next.js server routes — bypass the in-browser mock router.
-    // These are the high-velocity tracking endpoints backed by Firebase Admin.
-    const SERVER_ROUTES = [
-      '/api/track-visit',
-      '/api/track-article',
-      '/api/events',
-    ];
-    const hitsServerRoute = SERVER_ROUTES.some((p) => url === p || url.startsWith(p + '?'));
-    if (hitsServerRoute) {
-      return fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include',
-        cache: 'no-store',
-        signal: ctl.signal,
-      });
-    }
     return url.startsWith('/api/')
       ? firebaseApiFetch(url, { ...options, headers, signal: ctl.signal })
       : fetch(url, { ...options, headers, credentials: 'same-origin', cache: 'no-store', signal: ctl.signal });

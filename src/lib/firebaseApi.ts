@@ -19,6 +19,7 @@ import {
 } from './dbConnections';
 import { readCache, writeCache } from './localCache';
 import { SEED_POSTS, SEED_CATEGORIES } from './seed/blogSeedData';
+import { dedupeAssignments } from './assignGoals';
 
 // --- Admin password (presentation-level) ---
 const ADMIN_PASSWORD = "janki_app";
@@ -114,7 +115,13 @@ const mapStudentInput = (s: any) => {
   if (s.bio !== undefined) out.bio = s.bio;
   if (s.photo !== undefined) out.photo = s.photo;
   if (s.tags !== undefined) out.tags = s.tags;
-  if (s.assignedGoals !== undefined) out.assigned_goals = s.assignedGoals;
+  if (s.assignedGoals !== undefined) {
+    // Safeguard: never persist duplicate goalId entries. This is the single
+    // choke point through which every student write flows (PUT/POST), so
+    // dedupe here protects against any UI regression that re-introduces
+    // the duplication bug (see plan.md §4).
+    out.assigned_goals = dedupeAssignments(s.assignedGoals);
+  }
   if (s.totalPoints !== undefined) out.total_points = s.totalPoints;
   if (s.previousRank !== undefined) out.previous_rank = s.previousRank;
   return out;

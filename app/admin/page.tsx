@@ -2,7 +2,13 @@
 
 import { useAppDataQuery, useAuthQuery } from "@/hooks/useAppQueries";
 import dynamic from "next/dynamic";
-const AdminDashboard = dynamic(() => import("@/components/admin/AdminDashboard").then(mod => mod.AdminDashboard), { ssr: false });
+const AdminDashboard = dynamic(
+  () =>
+    import("@/components/admin/AdminDashboard").then(
+      (mod) => mod.AdminDashboard,
+    ),
+  { ssr: false },
+);
 import { LoginPage } from "@/components/pages/LoginPage";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect } from "react";
@@ -24,20 +30,29 @@ export default function AdminPage() {
   const groups = (appData as any)?.groups || [];
   const appSettings = appData?.appSettings || {};
 
-  const calculateTotalPoints = useCallback((assignedGoals: AssignedGoal[]) => {
-    if (!assignedGoals || !masterGoals) return 0;
-    return assignedGoals.reduce((total, assigned) => {
-      if (assigned.completed) {
-        const goalData = masterGoals.find((mg) => String(mg.id) === String(assigned.goalId));
-        if (goalData) {
-          const pts = goalData.points !== undefined ? goalData.points : (goalData as any).pointValue || (goalData as any).pts || 0;
-          const numPts = typeof pts === "number" ? pts : parseInt(String(pts), 10);
-          return total + (isNaN(numPts) ? 0 : numPts);
+  const calculateTotalPoints = useCallback(
+    (assignedGoals: AssignedGoal[]) => {
+      if (!assignedGoals || !masterGoals) return 0;
+      return assignedGoals.reduce((total, assigned) => {
+        if (assigned.completed) {
+          const goalData = masterGoals.find(
+            (mg) => String(mg.id) === String(assigned.goalId),
+          );
+          if (goalData) {
+            const pts =
+              goalData.points !== undefined
+                ? goalData.points
+                : (goalData as any).pointValue || (goalData as any).pts || 0;
+            const numPts =
+              typeof pts === "number" ? pts : parseInt(String(pts), 10);
+            return total + (isNaN(numPts) ? 0 : numPts);
+          }
         }
-      }
-      return total;
-    }, 0);
-  }, [masterGoals]);
+        return total;
+      }, 0);
+    },
+    [masterGoals],
+  );
 
   const navigateTo = (path: string, params: any = {}) => {
     if (path === "/student" && params.id) {
@@ -53,27 +68,29 @@ export default function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <LoginPage 
+      <LoginPage
         onLogin={() => {
           queryClient.invalidateQueries({ queryKey: ["auth"] });
           trackEvent("admin_login", { isAdmin: true });
           router.push("/admin");
-        }} 
-        appSettings={appSettings} 
+        }}
+        appSettings={appSettings}
       />
     );
   }
 
   return (
-    <AdminDashboard 
-      students={students} 
+    <AdminDashboard
+      students={students}
       refreshData={refreshData}
-      masterGoals={masterGoals} 
-      categories={categories} 
+      masterGoals={masterGoals}
+      categories={categories}
       groups={groups}
       calculateTotalPoints={calculateTotalPoints}
       appSettings={appSettings}
-      setAppSettings={() => queryClient.invalidateQueries({ queryKey: ["app-data"] })} 
+      setAppSettings={() =>
+        queryClient.invalidateQueries({ queryKey: ["app-data"] })
+      }
       navigateTo={navigateTo}
     />
   );

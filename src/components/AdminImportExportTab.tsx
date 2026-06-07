@@ -15,6 +15,12 @@ import { toast } from "sonner";
 import { writeBatch, doc, collection, getDocs } from "firebase/firestore";
 import { getActiveConnection } from "../lib/dbConnections";
 import { connectFirestore, parseFirebaseConfig } from "../lib/firestoreDriver";
+import {
+  planImport,
+  API_PATH,
+  type ImportMode,
+  type ImportPlan,
+} from "../lib/import/planImport";
 
 type ApiFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -91,6 +97,12 @@ export function AdminImportExportTab({
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0); // 0..100
   const [importStatus, setImportStatus] = useState<string>("");
+
+  // Smart-import dry-run state
+  const [plan, setPlan] = useState<ImportPlan<any> | null>(null);
+  const [planMode, setPlanMode] = useState<ImportMode | null>(null);
+  const [ignoreInvalid, setIgnoreInvalid] = useState(false);
+  const [committing, setCommitting] = useState(false);
 
   const goalById = useMemo(() => {
     const m = new Map<string, any>();
@@ -531,8 +543,143 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
     }
   };
 
+  // ============= SMART IMPORT (dry-run + idempotent upsert) =============
+
+  /**
+   * Build an ImportPlan against the current snapshot and open the dry-run
+   * modal. Nothing is written until the admin clicks "Commit".
+   */
+  const analyzeForDryRun = async () => {
+    if (!previewRows) return;
+    setBusy("analyze");
+    setImportMessage(null);
+    try {
+      const mode: ImportMode =
+        importType === "students"
+          ? "students"
+          : importType === "goals"
+            ? "goals"
+            : importType === "categories"
+              ? "categories"
+              : "groups";
+
+      let existing: any[] = [];
+      if (mode === "students") existing = students || [];
+      else if (mode === "goals") existing = masterGoals || [];
+      else if (mode === "categories") existing = categories || [];
+      else {
+        const res = await apiFetch("/api/groups");
+        existing = res.ok ? await res.json() : [];
+      }
+
+      let groupsForFk: any[] = [];
+      if (mode === "categories") {
+        const res = await apiFetch("/api/groups");
+        groupsForFk = res.ok ? await res.json() : [];
+      }
+
+      const built = planImport(mode, previewRows, {
+        existing,
+        categories: categories || [],
+        groups: groupsForFk,
+      });
+      setPlan(built);
+      setPlanMode(mode);
+      setIgnoreInvalid(false);
+    } catch (e: any) {
+      setImportMessage({
+        type: "error",
+        text: "Analyze failed: " + (e?.message || e),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /**
+   * Execute the previously-built plan. Updates use PUT with ONLY the changed
+   * fields (never overwrites omitted columns). Creates use POST. No deletes,
+   * ever.
+   */
+  const commitPlan = async () => {
+    if (!plan || !planMode) return;
+    if (plan.invalid.length > 0 && !ignoreInvalid) return;
+    setCommitting(true);
+    setImportMessage(null);
+    const path = API_PATH[planMode];
+    let created = 0;
+    let updated = 0;
+    let failed = 0;
+    try {
+      for (const u of plan.toUpdate) {
+        const body: any = { id: u.id };
+        for (const f of u.changedFields) body[f] = (u.after as any)[f];
+        const res = await apiFetch(`${path}/${encodeURIComponent(u.id)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) updated++;
+        else failed++;
+      }
+      for (const c of plan.toCreate) {
+        const body: any = { ...c.data };
+        if (c.id) body.id = c.id;
+        const res = await apiFetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) created++;
+        else failed++;
+      }
+
+      try {
+        await apiFetch("/api/logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "Smart Import",
+            details: `${planMode}: +${created} created, ~${updated} updated, ${plan.unchanged} unchanged, ${failed} failed`,
+            type: "system",
+            timestamp: new Date().toISOString(),
+          }),
+        });
+      } catch {}
+
+      setImportMessage({
+        type: failed > 0 ? "error" : "success",
+        text: `Created ${created} · Updated ${updated} · Unchanged ${plan.unchanged}${failed ? ` · Failed ${failed}` : ""}.`,
+      });
+      if (created + updated > 0) refreshData();
+      setPlan(null);
+      setPlanMode(null);
+      setPreviewRows(null);
+      setPreviewHeaders([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (e: any) {
+      setImportMessage({ type: "error", text: e?.message || String(e) });
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+
   const runImport = async () => {
     if (!previewRows || previewRows.length === 0) return;
+    // Full modes go through the dry-run planner. Names-only modes keep their
+    // legacy create-only fast path (they're just seed helpers).
+    if (
+      importType === "students" ||
+      importType === "goals" ||
+      importType === "categories" ||
+      importType === "groups"
+    ) {
+      return analyzeForDryRun();
+    }
+    // From here, TS knows it's a "names-only" path. Re-widen so the existing
+    // (intentional) branches that also accept the full forms still compile.
+    const it = importType as ImportType;
     setBusy("import");
     setImportMessage(null);
     const findCol = (candidates: string[]): string | null => {
@@ -549,7 +696,7 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
     const errors: string[] = [];
 
     try {
-      if (importType === "students_names" || importType === "students") {
+      if (it === "students_names" || it === "students") {
         const nameCol = findCol(["name", "student_name", "full_name"]);
         if (!nameCol) throw new Error('CSV must have a "name" column.');
         const bioCol = findCol(["bio", "description"]);
@@ -559,7 +706,7 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
           const name = (row[nameCol] || "").trim();
           if (!name) continue;
           const payload: any = { name };
-          if (importType === "students") {
+          if (it === "students") {
             if (bioCol) payload.bio = row[bioCol] || "";
             if (photoCol) payload.photo = row[photoCol] || "";
             if (tagsCol) {
@@ -582,14 +729,14 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
             errors.push(`Row "${name}" failed`);
           }
         }
-      } else if (importType === "goals_titles" || importType === "goals") {
+      } else if (it === "goals_titles" || it === "goals") {
         const titleCol = findCol(["title", "goal", "name"]);
         if (!titleCol) throw new Error('CSV must have a "title" column.');
         const ptsCol = findCol(["points", "pts"]);
         const descCol = findCol(["description", "desc"]);
         const catNameCol = findCol(["category_name", "category"]);
         // ---- Smart Import: upsert categories using slugified name as the natural ID. ----
-        if (importType === "goals" && catNameCol) {
+        if (it === "goals" && catNameCol) {
           const slugify = (s: string) =>
             s
               .toLowerCase()
@@ -622,7 +769,7 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
           const title = (row[titleCol] || "").trim();
           if (!title) continue;
           const payload: any = { title, points: 0 };
-          if (importType === "goals") {
+          if (it === "goals") {
             const ptsRaw = ptsCol ? row[ptsCol] : "";
             const pts = parseInt(String(ptsRaw || "0"), 10);
             payload.points = isNaN(pts) ? 0 : pts;
@@ -644,54 +791,6 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
           else {
             failed++;
             errors.push(`Row "${title}" failed`);
-          }
-        }
-      } else if (importType === "categories") {
-        const nameCol = findCol(["name", "category", "category_name"]);
-        if (!nameCol) throw new Error('CSV must have a "name" column.');
-        const groupIdCol = findCol(["group_id", "groupid", "groupId"]);
-        const orderCol = findCol(["order", "sort_order", "position"]);
-        for (const row of previewRows) {
-          const name = (row[nameCol] || "").trim();
-          if (!name) continue;
-          const payload: any = { name };
-          if (groupIdCol && row[groupIdCol]) payload.groupId = row[groupIdCol].trim();
-          if (orderCol && row[orderCol] !== "") {
-            const o = parseInt(String(row[orderCol] || "0"), 10);
-            if (!isNaN(o)) payload.order = o;
-          }
-          const res = await apiFetch("/api/categories", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) inserted++;
-          else {
-            failed++;
-            errors.push(`Row "${name}" failed`);
-          }
-        }
-      } else if (importType === "groups") {
-        const nameCol = findCol(["name", "group", "group_name"]);
-        if (!nameCol) throw new Error('CSV must have a "name" column.');
-        const orderCol = findCol(["order", "sort_order", "position"]);
-        for (const row of previewRows) {
-          const name = (row[nameCol] || "").trim();
-          if (!name) continue;
-          const payload: any = { name };
-          if (orderCol && row[orderCol] !== "") {
-            const o = parseInt(String(row[orderCol] || "0"), 10);
-            if (!isNaN(o)) payload.order = o;
-          }
-          const res = await apiFetch("/api/groups", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) inserted++;
-          else {
-            failed++;
-            errors.push(`Row "${name}" failed`);
           }
         }
       }
@@ -772,6 +871,7 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
   );
 
   return (
+    <>
     <div className="p-4 sm:p-8 space-y-10">
       {/* HEADER */}
       <div>
@@ -1151,5 +1251,161 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
         </div>
       </section>
     </div>
+
+    {plan && planMode && (
+      <div className="fixed inset-0 bg-base-900/60 backdrop-blur-md z-[100] flex justify-center items-center p-4">
+        <div className="bg-card rounded-2xl shadow-soft w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div>
+              <h3 className="font-black text-lg text-foreground">
+                Dry-Run Preview · {planMode}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Nothing has been written yet. Review the diff and click Commit
+                to apply.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPlan(null);
+                setPlanMode(null);
+              }}
+              disabled={committing}
+              className="p-2 hover:bg-secondary rounded-xl"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="p-5 overflow-y-auto space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <div className="text-2xl font-black text-emerald-700">
+                  {plan.toCreate.length}
+                </div>
+                <div className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                  Create
+                </div>
+              </div>
+              <div className="rounded-xl border border-primary-200 bg-primary/10 p-3">
+                <div className="text-2xl font-black text-primary">
+                  {plan.toUpdate.length}
+                </div>
+                <div className="text-xs font-bold text-primary uppercase tracking-wide">
+                  Update
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-3">
+                <div className="text-2xl font-black text-muted-foreground">
+                  {plan.unchanged}
+                </div>
+                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                  Unchanged
+                </div>
+              </div>
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                <div className="text-2xl font-black text-red-700">
+                  {plan.invalid.length}
+                </div>
+                <div className="text-xs font-bold text-red-800 uppercase tracking-wide">
+                  Invalid
+                </div>
+              </div>
+            </div>
+
+            {plan.toUpdate.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-foreground mb-1">
+                  Updates ({plan.toUpdate.length})
+                </h4>
+                <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
+                  {plan.toUpdate.slice(0, 50).map((u) => (
+                    <li key={u.id} className="font-mono">
+                      <span className="text-primary">{u.id}</span> →{" "}
+                      {u.changedFields.join(", ")}
+                    </li>
+                  ))}
+                  {plan.toUpdate.length > 50 && (
+                    <li className="opacity-60">
+                      …and {plan.toUpdate.length - 50} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {plan.toCreate.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-foreground mb-1">
+                  New records ({plan.toCreate.length})
+                </h4>
+                <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
+                  {plan.toCreate.slice(0, 50).map((c) => (
+                    <li key={c.row} className="font-mono">
+                      row {c.row}: {(c.data as any).name || (c.data as any).title}
+                    </li>
+                  ))}
+                  {plan.toCreate.length > 50 && (
+                    <li className="opacity-60">
+                      …and {plan.toCreate.length - 50} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {plan.invalid.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-red-700 mb-1">
+                  Invalid rows ({plan.invalid.length})
+                </h4>
+                <ul className="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto border border-red-200 bg-red-50 rounded-xl p-2">
+                  {plan.invalid.slice(0, 50).map((v, i) => (
+                    <li key={i} className="font-mono">
+                      row {v.row}: {v.reason}
+                    </li>
+                  ))}
+                </ul>
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={ignoreInvalid}
+                    onChange={(e) => setIgnoreInvalid(e.target.checked)}
+                  />
+                  Skip invalid rows and commit the rest
+                </label>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 px-5 py-4 border-t border-border bg-background">
+            <button
+              onClick={() => {
+                setPlan(null);
+                setPlanMode(null);
+              }}
+              disabled={committing}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold border border-border hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={commitPlan}
+              disabled={
+                committing ||
+                (plan.invalid.length > 0 && !ignoreInvalid) ||
+                plan.toCreate.length + plan.toUpdate.length === 0
+              }
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary-700 disabled:opacity-60"
+            >
+              {committing && <Loader2 className="w-4 h-4 animate-spin" />}
+              Commit ({plan.toCreate.length + plan.toUpdate.length})
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
