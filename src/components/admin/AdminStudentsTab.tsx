@@ -1024,9 +1024,14 @@ function StudentAdminModal({
                 />
                 <ImageUploader
                   folder="avatars"
+                  ownerId={formData.id || undefined}
                   aspectRatio={1}
-                  onUploadSuccess={(url) =>
-                    setFormData((prev) => ({ ...prev, photo: url }))
+                  onUploadSuccess={(url, meta) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      photo: url,
+                      photoPath: meta?.path || "",
+                    }))
                   }
                   trigger={
                     <button
