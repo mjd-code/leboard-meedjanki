@@ -1051,6 +1051,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://api.dicebear.com/7.x/bottts/svg?seed=${Math.floor(Math.random() * 1000)}&backgroundColor=d1d4f9`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
@@ -1063,6 +1064,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || "S")}&background=random`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
