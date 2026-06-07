@@ -102,6 +102,7 @@ const mapStudentRow = (r: any) => ({
   name: r.name,
   bio: r.bio || "",
   photo: r.photo || "",
+  photoPath: r.photo_path || "",
   tags: r.tags || [],
   assignedGoals: r.assigned_goals || [],
   totalPoints: r.total_points || 0,
@@ -114,6 +115,7 @@ const mapStudentInput = (s: any) => {
   if (s.name !== undefined) out.name = s.name;
   if (s.bio !== undefined) out.bio = s.bio;
   if (s.photo !== undefined) out.photo = s.photo;
+  if (s.photoPath !== undefined) out.photo_path = s.photoPath;
   if (s.tags !== undefined) out.tags = s.tags;
   if (s.assignedGoals !== undefined) {
     // Safeguard: never persist duplicate goalId entries. This is the single
