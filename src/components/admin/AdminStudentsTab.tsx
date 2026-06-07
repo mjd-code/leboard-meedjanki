@@ -1077,6 +1077,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://api.dicebear.com/7.x/shapes/svg?seed=${Math.floor(Math.random() * 1000)}&backgroundColor=random`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
@@ -1101,7 +1102,7 @@ function StudentAdminModal({
                   placeholder="Paste image URL here"
                   value={formData.photo}
                   onChange={(e) =>
-                    setFormData((p) => ({ ...p, photo: e.target.value }))
+                    setFormData((p) => ({ ...p, photo: e.target.value, photoPath: "" }))
                   }
                 />
               </div>
