@@ -686,6 +686,7 @@ function StudentAdminModal({
     photo:
       student?.photo ||
       dicebearAvatar(student?.name || student?.id || "student"),
+    photoPath: student?.photoPath || "",
     tags: student?.tags ? [...student.tags] : [],
     assignedGoals: student?.assignedGoals ? [...student.assignedGoals] : [],
   });
