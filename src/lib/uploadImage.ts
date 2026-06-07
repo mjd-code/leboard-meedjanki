@@ -1,10 +1,13 @@
 import pLimit from "p-limit";
 import { toast } from "sonner";
+import { uploadWebp, uploadRaw, type UploadResult } from "./storage";
 
 /**
- * Secondary Strategy: Base64 Firestore Storage
- * If a user must upload a custom image, we will store it directly in Firestore
- * as a Base64 string.
+ * Legacy fallback: Base64 encoding.
+ * The primary pipeline now uploads resized WebP images to Firebase Storage
+ * (see `src/lib/storage.ts`). This Base64 path is only used as a graceful
+ * fallback when Storage is unavailable, so a single failed upload never blocks
+ * the admin from saving a record.
  */
 export async function imageToBase64(
   file: File,
@@ -52,41 +55,70 @@ export async function imageToBase64(
   });
 }
 
+/**
+ * Upload an image and return `{ url, path }`.
+ * Primary path: resize → WebP → Firebase Storage.
+ * Fallback (Storage error): inline Base64 data URL with no `path`.
+ */
+export async function uploadImageWithMeta(
+  file: File,
+  folder: string = "uploads",
+  ownerId?: string,
+  onProgress?: (progress: number) => void
+): Promise<UploadResult> {
+  if (onProgress) onProgress(30);
+  try {
+    const result = await uploadWebp(file, folder, ownerId);
+    if (onProgress) onProgress(100);
+    return result;
+  } catch (err) {
+    console.warn("[uploadImage] Storage upload failed, falling back to Base64:", err);
+    const isLarge = folder !== "avatars";
+    const b64 = await imageToBase64(
+      file,
+      isLarge ? 600 : 100,
+      isLarge ? 600 : 100,
+      isLarge ? 0.6 : 0.5
+    );
+    if (onProgress) onProgress(100);
+    return { url: b64, path: "" };
+  }
+}
+
+/**
+ * Backwards-compatible helper returning just the URL string.
+ * Existing callers (batch upload, editor blocks) keep working unchanged.
+ */
 export async function uploadImageWithCompression(
   file: File,
   folder: string = "uploads",
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  // If it's an avatar, we use a tiny compression (Base64)
-  // If it's a blog post cover, we'll still use Base64 but a bit larger, e.g. max 800px width.
-  // Warning: Base64 strings can get large, but the user explicitly requested this to avoid Cloud Storage.
-  // "Strictly for small logos/icons if needed"
-  // Let's assume generic use case allows larger if needed, but we keep it small to avoid Firestore doc limits (1MB).
-  const isLarge = folder !== 'avatars';
-  
-  if (onProgress) onProgress(50);
-  const b64 = await imageToBase64(file, isLarge ? 600 : 100, isLarge ? 600 : 100, isLarge ? 0.6 : 0.5);
-  if (onProgress) onProgress(100);
-  
-  return b64;
+  const { url } = await uploadImageWithMeta(file, folder, undefined, onProgress);
+  return url;
 }
 
 /**
  * Raw file upload (no compression). For PDFs, docs, csv, md, video, etc.
- * Returns a base64 data URL so callers can persist alongside other media.
- * NOTE: Firestore docs are capped at ~1MB — keep raw uploads small or swap to
- * Cloud Storage if your blob exceeds that.
+ * Uploads verbatim to Firebase Storage and returns the download URL.
+ * Falls back to a Base64 data URL if Storage is unavailable.
  */
 export async function uploadRawFile(
   file: File,
-  _folder: string = 'uploads'
+  folder: string = 'uploads'
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result as string);
-    reader.onerror = () => reject(new Error('FileReader failed to read file'));
-    reader.readAsDataURL(file);
-  });
+  try {
+    const { url } = await uploadRaw(file, folder);
+    return url;
+  } catch (err) {
+    console.warn("[uploadImage] Raw Storage upload failed, falling back to Base64:", err);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = () => reject(new Error('FileReader failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 export async function batchUploadImages(
