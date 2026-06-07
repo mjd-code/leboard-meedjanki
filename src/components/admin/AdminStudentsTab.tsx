@@ -32,6 +32,7 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { ImageUploader } from "../ui/ImageUploader";
+import { deleteByPath } from "../../lib/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "../../lib/api";
 import { mergeAssignments, dedupeAssignments } from "../../lib/assignGoals";
