@@ -32,6 +32,7 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { ImageUploader } from "../ui/ImageUploader";
+import { deleteByPath } from "../../lib/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "../../lib/api";
 import { mergeAssignments, dedupeAssignments } from "../../lib/assignGoals";
@@ -433,6 +434,17 @@ export function AdminStudentsTab({
         id: formData.id,
         data: finalData,
       });
+      // Best-effort cleanup of the previous Storage avatar when it was replaced.
+      if (!isNew) {
+        const prev = studentsList.find((s) => s.id === formData.id);
+        if (
+          prev?.photoPath &&
+          prev.photoPath !== finalData.photoPath &&
+          prev.photoPath.startsWith("avatars/")
+        ) {
+          deleteByPath(prev.photoPath);
+        }
+      }
       refreshData();
       setModalOpen(false);
       alert("Data Santri berhasil disimpan!");
@@ -674,6 +686,7 @@ function StudentAdminModal({
     photo:
       student?.photo ||
       dicebearAvatar(student?.name || student?.id || "student"),
+    photoPath: student?.photoPath || "",
     tags: student?.tags ? [...student.tags] : [],
     assignedGoals: student?.assignedGoals ? [...student.assignedGoals] : [],
   });
@@ -1011,9 +1024,14 @@ function StudentAdminModal({
                 />
                 <ImageUploader
                   folder="avatars"
+                  ownerId={formData.id || undefined}
                   aspectRatio={1}
-                  onUploadSuccess={(url) =>
-                    setFormData((prev) => ({ ...prev, photo: url }))
+                  onUploadSuccess={(url, meta) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      photo: url,
+                      photoPath: meta?.path || "",
+                    }))
                   }
                   trigger={
                     <button
@@ -1033,6 +1051,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://api.dicebear.com/7.x/bottts/svg?seed=${Math.floor(Math.random() * 1000)}&backgroundColor=d1d4f9`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
@@ -1045,6 +1064,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || "S")}&background=random`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
@@ -1057,6 +1077,7 @@ function StudentAdminModal({
                       setFormData((p) => ({
                         ...p,
                         photo: `https://api.dicebear.com/7.x/shapes/svg?seed=${Math.floor(Math.random() * 1000)}&backgroundColor=random`,
+                        photoPath: "",
                       }))
                     }
                     className="bg-primary/10 text-primary px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all"
@@ -1081,7 +1102,7 @@ function StudentAdminModal({
                   placeholder="Paste image URL here"
                   value={formData.photo}
                   onChange={(e) =>
-                    setFormData((p) => ({ ...p, photo: e.target.value }))
+                    setFormData((p) => ({ ...p, photo: e.target.value, photoPath: "" }))
                   }
                 />
               </div>

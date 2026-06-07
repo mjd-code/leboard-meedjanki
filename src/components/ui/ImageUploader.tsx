@@ -1,14 +1,21 @@
 import React, { useRef, useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
-import { uploadImageWithCompression } from '@/lib/uploadImage';
+import { uploadImageWithMeta } from '@/lib/uploadImage';
 import { toast } from 'sonner';
 import { Button } from './button';
 import { ImageIcon, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ImageUploaderProps {
-  onUploadSuccess: (url: string) => void;
+  /**
+   * Called after a successful upload. `meta.path` is the Firebase Storage
+   * object path (empty string when the Base64 fallback was used). Callers that
+   * only care about the URL can ignore the second argument.
+   */
+  onUploadSuccess: (url: string, meta?: { path: string }) => void;
   folder?: string;
+  /** Owner id used to namespace the Storage path (e.g. studentId, postId). */
+  ownerId?: string;
   className?: string;
   trigger?: React.ReactNode;
   aspectRatio?: number;
@@ -19,6 +26,7 @@ interface ImageUploaderProps {
 export function ImageUploader({
   onUploadSuccess,
   folder = 'uploads',
+  ownerId,
   className = '',
   trigger,
   aspectRatio, // if undefined, free crop? or default 16/9 for blog, 1/1 for avatar
@@ -104,10 +112,10 @@ export function ImageUploader({
 
       const croppedFile = new File([croppedBlob], `image_${Date.now()}.webp`, { type: 'image/webp' });
       
-      // We still pass it to uploadImageWithCompression because it handles Firebase upload
-      const url = await uploadImageWithCompression(croppedFile, folder);
-      
-      onUploadSuccess(url);
+      // Uploads the cropped WebP to Firebase Storage (Base64 fallback on error).
+      const { url, path } = await uploadImageWithMeta(croppedFile, folder, ownerId);
+
+      onUploadSuccess(url, { path });
       setCropImage(null);
       toast.dismiss(toastId);
       toast.success('Gambar berhasil diunggah');

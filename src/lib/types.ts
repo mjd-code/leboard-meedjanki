@@ -6,6 +6,8 @@ export interface AdminUser {
   password?: string;
   full_name: string;
   photo_url?: string;
+  /** Firebase Storage object path for `photo_url` (used for cleanup on replace). */
+  photo_path?: string;
   role: AdminRole;
   privileges: string[];
   created_at: string;
@@ -92,6 +94,8 @@ export interface Post {
   created_at: string;
   organic_views?: number;
   offset_views?: number;
+  /** Firebase Storage object path for `featured_image` (cleanup on replace). */
+  featured_image_path?: string;
 }
 
 export interface Student {
@@ -99,6 +103,8 @@ export interface Student {
   name: string;
   bio: string;
   photo: string;
+  /** Firebase Storage object path for `photo` (cleanup on replace). Optional/back-compat. */
+  photoPath?: string;
   tags?: string[];
   assignedGoals: AssignedGoal[];
   totalPoints?: number;

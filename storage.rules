@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Firebase Storage rules for the optimized image pipeline (Task 2).
+//
+// This app authenticates admins with a custom token system (not Firebase
+// Auth), so `request.auth` is always null on Storage requests. The matching
+// `firestore.rules` is therefore open as well. To keep parity and allow the
+// image pipeline to write, scoped upload paths allow read/write with a 10 MB
+// size cap; everything else is denied.
+//
+// NOTE: If you migrate admins to Firebase Auth, tighten the `write` rule to
+// `request.auth != null` (and ideally an admin custom claim).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{folder}/{ownerId}/{file=**} {
+      allow read: if true;
+      allow write: if request.resource == null
+                   || request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Default: deny everything else.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

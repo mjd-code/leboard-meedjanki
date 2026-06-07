@@ -434,7 +434,7 @@ export function AdminBlogTab() {
                 <ImageUploader 
                   folder="thumbnails" 
                   aspectRatio={16/9} 
-                  onUploadSuccess={(url) => setIsEditing({ ...isEditing, featured_image: url })} 
+                  onUploadSuccess={(url, meta) => setIsEditing({ ...isEditing, featured_image: url, featured_image_path: meta?.path || '' })} 
                   trigger={
                     <Button variant="outline" size="sm" className="w-full relative overflow-hidden" type="button">
                       Pilih Gambar Lokal
