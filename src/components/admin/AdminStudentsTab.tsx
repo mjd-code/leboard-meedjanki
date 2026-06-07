@@ -433,6 +433,17 @@ export function AdminStudentsTab({
         id: formData.id,
         data: finalData,
       });
+      // Best-effort cleanup of the previous Storage avatar when it was replaced.
+      if (!isNew) {
+        const prev = studentsList.find((s) => s.id === formData.id);
+        if (
+          prev?.photoPath &&
+          prev.photoPath !== finalData.photoPath &&
+          prev.photoPath.startsWith("avatars/")
+        ) {
+          deleteByPath(prev.photoPath);
+        }
+      }
       refreshData();
       setModalOpen(false);
       alert("Data Santri berhasil disimpan!");
