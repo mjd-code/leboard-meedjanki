@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Firebase Storage rules for the optimized image pipeline (Task 2).
+//
+// Images (avatars, thumbnails, post images, raw uploads) are publicly
+// readable so they can be served from the Storage CDN with immutable caching.
+// Writes require an authenticated session (admin). Tighten further with a
+// custom admin claim if/when one is issued to admin accounts.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{folder}/{ownerId}/{file=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Default: deny everything else.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
