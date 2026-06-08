@@ -188,76 +188,78 @@ export function DataTable<TData, TValue>({
   );
 
   const renderTableView = () => (
-    <div className="rounded-xl border border-border bg-background overflow-hidden overflow-x-auto shadow-inner w-full">
-      <Table className="min-w-full">
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="border-b border-border/50 bg-secondary/30">
-              {headerGroup.headers.map((header) => {
-                const canSort = header.column.getCanSort();
-                const sorted = header.column.getIsSorted();
-                return (
-                  <TableHead key={header.id} className="font-semibold text-foreground whitespace-nowrap px-4 py-3 h-10">
-                    {header.isPlaceholder
-                      ? null
-                      : canSort
-                      ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex items-center gap-1.5 select-none cursor-pointer hover:text-primary transition-colors group"
-                            title="Klik untuk mengurutkan"
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            {sorted === "asc" ? (
-                              <ArrowUp className="h-3.5 w-3.5 text-primary" />
-                            ) : sorted === "desc" ? (
-                              <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                            ) : (
-                              <ArrowUpDown className="h-3.5 w-3.5 opacity-30 group-hover:opacity-70" />
-                            )}
-                          </button>
-                        )
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className="hover:bg-secondary/20 transition-colors border-border/40"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-4 py-3 align-middle max-w-[200px] sm:max-w-none truncate sm:whitespace-normal">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+    <div className="rounded-xl border border-border bg-background overflow-hidden shadow-inner w-full scrollbar-thin">
+      <div className="overflow-x-auto scrollbar-thin">
+        <Table className="min-w-full">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="border-b border-border/50 bg-secondary/30">
+                {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  const sorted = header.column.getIsSorted();
+                  return (
+                    <TableHead key={header.id} className="font-semibold text-foreground whitespace-nowrap px-4 py-3 h-10">
+                      {header.isPlaceholder
+                        ? null
+                        : canSort
+                        ? (
+                            <button
+                              type="button"
+                              onClick={header.column.getToggleSortingHandler()}
+                              className="inline-flex items-center gap-1.5 select-none cursor-pointer hover:text-primary transition-colors group"
+                              title="Klik untuk mengurutkan"
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                              {sorted === "asc" ? (
+                                <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                              ) : sorted === "desc" ? (
+                                <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                              ) : (
+                                <ArrowUpDown className="h-3.5 w-3.5 opacity-30 group-hover:opacity-70" />
+                              )}
+                            </button>
+                          )
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="h-32 text-center font-medium text-muted-foreground"
-              >
-                Tidak ada data.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className="hover:bg-secondary/20 transition-colors border-border/40"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-4 py-3 align-middle max-w-[200px] sm:max-w-none truncate sm:whitespace-normal">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-32 text-center font-medium text-muted-foreground"
+                >
+                  Tidak ada data.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 
