@@ -295,7 +295,7 @@ function StudentProfilePage({
     setExpandedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
   };
   const toggleGroup = (gid: string) => {
-    setExpandedGroups((prev) => ({ ...prev, [gid]: prev[gid] === undefined ? false : !prev[gid] }));
+    setExpandedGroups((prev) => ({ ...prev, [gid]: !prev[gid] }));
   };
 
   return (
@@ -504,7 +504,7 @@ function StudentProfilePage({
           </Card>
         ) : (
           studentTree.map((node) => {
-            const groupOpen = expandedGroups[node.group.id] !== false;
+            const groupOpen = expandedGroups[node.group.id] === true;
             const groupGoals = node.categories.flatMap((c) => c.goals);
             const groupCompleted = groupGoals.filter((g) => g.completed).length;
             const groupPoints = groupGoals
@@ -561,7 +561,7 @@ function StudentProfilePage({
                       <div className="p-3 space-y-3">
                         {node.categories.map((catNode) => {
                           const cid = catNode.category.id;
-                          const isExpanded = expandedCategories[cid] !== false;
+                          const isExpanded = expandedCategories[cid] === true;
                           const goals = catNode.goals;
                           const completedCount = goals.filter((g) => g.completed).length;
                           const progress =
