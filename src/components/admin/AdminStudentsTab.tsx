@@ -506,18 +506,7 @@ export function AdminStudentsTab({
     },
     {
       accessorKey: "name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0 font-medium text-muted-foreground"
-          >
-            Student
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Student",
       cell: ({ row }) => {
         const student = row.original;
         return (
