@@ -39,6 +39,8 @@ import {
   Search, 
   Filter, 
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   LayoutGrid,
   Table as TableIcon
 } from "lucide-react";
@@ -192,10 +194,33 @@ export function DataTable<TData, TValue>({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="border-b border-border/50 bg-secondary/30">
               {headerGroup.headers.map((header) => {
+                const canSort = header.column.getCanSort();
+                const sorted = header.column.getIsSorted();
                 return (
                   <TableHead key={header.id} className="font-semibold text-foreground whitespace-nowrap px-4 py-3 h-10">
                     {header.isPlaceholder
                       ? null
+                      : canSort
+                      ? (
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="inline-flex items-center gap-1.5 select-none cursor-pointer hover:text-primary transition-colors group"
+                            title="Klik untuk mengurutkan"
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {sorted === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                            ) : sorted === "desc" ? (
+                              <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-30 group-hover:opacity-70" />
+                            )}
+                          </button>
+                        )
                       : flexRender(
                           header.column.columnDef.header,
                           header.getContext()

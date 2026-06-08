@@ -67,7 +67,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SimpleMenu } from "../ui/SimpleMenu";
-import { ArrowUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -506,18 +505,7 @@ export function AdminStudentsTab({
     },
     {
       accessorKey: "name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="hover:bg-transparent px-0 font-medium text-muted-foreground"
-          >
-            Student
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+      header: "Student",
       cell: ({ row }) => {
         const student = row.original;
         return (
