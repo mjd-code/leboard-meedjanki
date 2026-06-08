@@ -50,6 +50,7 @@ import {
   SortKey,
 } from "../StudentSortDropdown";
 import { dicebearAvatar } from "../ImageFallback";
+import { parseGDriveUrl, isGDriveUrl } from "@/lib/gdrive";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import type {
   Category,
@@ -670,6 +671,110 @@ export function AdminStudentsTab({
   );
 }
 
+type PhotoSource = "upload" | "gdrive";
+
+function PhotoSourcePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const initialMode: PhotoSource = isGDriveUrl(value) ? "gdrive" : "upload";
+  const [mode, setMode] = useState<PhotoSource>(initialMode);
+  const [draft, setDraft] = useState(initialMode === "gdrive" ? value : "");
+  const parsedId = parseGDriveUrl(draft);
+  const invalid = draft.trim().length > 0 && !parsedId;
+
+  return (
+    <div>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+        Sumber Foto
+      </label>
+      <div className="inline-flex rounded-xl bg-secondary p-1 mb-3 w-full">
+        <button
+          type="button"
+          onClick={() => setMode("upload")}
+          className={cn(
+            "flex-1 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+            mode === "upload"
+              ? "bg-card shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Upload File
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("gdrive")}
+          className={cn(
+            "flex-1 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+            mode === "gdrive"
+              ? "bg-card shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Google Drive
+        </button>
+      </div>
+
+      {mode === "upload" ? (
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+            Photo URL (Optional)
+          </label>
+          <input
+            type="text"
+            className="w-full bg-secondary border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/50"
+            placeholder="Paste image URL here"
+            value={isGDriveUrl(value) ? "" : value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Atau gunakan tombol kamera di foto profil untuk mengunggah file.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
+            Google Drive Link
+          </label>
+          <input
+            type="text"
+            className={cn(
+              "w-full bg-secondary border rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/50",
+              invalid ? "border-destructive/60" : "border-transparent"
+            )}
+            placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+            value={draft}
+            onChange={(e) => {
+              const next = e.target.value;
+              setDraft(next);
+              if (next.trim() === "") {
+                onChange("");
+              } else if (parseGDriveUrl(next)) {
+                onChange(next.trim());
+              }
+            }}
+          />
+          {invalid ? (
+            <p className="text-[10px] text-destructive mt-2">
+              Tidak dapat mengenali File ID dari link tersebut.
+            </p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Pastikan permission file Drive diatur ke{" "}
+              <span className="font-bold">“Anyone with the link can view”</span>{" "}
+              agar gambar dapat ditampilkan.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // Student Edit Modal (Shared with initial but updated styles)
 function StudentAdminModal({
   student,
@@ -1092,20 +1197,14 @@ function StudentAdminModal({
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
-                  Photo URL (Optional)
-                </label>
-                <input
-                  type="text"
-                  className="w-full bg-secondary border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/50"
-                  placeholder="Paste image URL here"
-                  value={formData.photo}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, photo: e.target.value, photoPath: "" }))
-                  }
-                />
-              </div>
+              <PhotoSourcePicker
+                value={formData.photo}
+                onChange={(url) =>
+                  setFormData((p) => ({ ...p, photo: url, photoPath: "" }))
+                }
+              />
+
+
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
                   Nama Lengkap
@@ -1214,7 +1313,15 @@ function StudentAdminModal({
 
             {/* Group tabs */}
             {tree.length > 0 && (
-              <div className="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide">
+              <div
+                className="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide"
+                onWheel={(e) => {
+                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                    e.preventDefault();
+                  }
+                }}
+              >
                 <div className="flex gap-2 min-w-max pb-1">
                   {tree.map((node) => {
                     const active = node.group.id === activeGroupNode?.group.id;
@@ -1257,7 +1364,15 @@ function StudentAdminModal({
 
             {/* Category tabs (multi-select) */}
             {activeCategories.length > 0 && (
-              <div className="mb-4 -mx-1 px-1 overflow-x-auto scrollbar-hide">
+              <div
+                className="mb-4 -mx-1 px-1 overflow-x-auto scrollbar-hide"
+                onWheel={(e) => {
+                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                    e.preventDefault();
+                  }
+                }}
+              >
                 <div className="flex gap-2 min-w-max pb-1 items-center">
                   <button
                     type="button"

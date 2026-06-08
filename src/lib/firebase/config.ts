@@ -19,7 +19,15 @@ const firebaseConfig = {
 const DB_ID = "ngambonpesantren-db-firebase-01";
 
 // Initialize app once (HMR-safe)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Use a dedicated named app so we don't collide with — or depend on —
+// the named apps that `firestoreDriver.ts` creates for multi-connection
+// support. Previously we called `getApp()` (default) whenever any app
+// existed, which threw "No Firebase App '[DEFAULT]'" once the driver
+// had already initialized a named connection app first.
+const APP_NAME = "default-app";
+const app =
+  getApps().find((a) => a.name === APP_NAME) ??
+  initializeApp(firebaseConfig, APP_NAME);
 
 const auth = getAuth(app);
 

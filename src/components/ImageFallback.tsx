@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Avatar as ShadcnAvatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ImageIcon, User as UserIcon } from "lucide-react";
+import { resolveImageUrl, gdriveFallbackUrl } from "@/lib/gdrive";
 
 export type ImageFallbackVariant = "avatar" | "logo" | "generic";
 
@@ -31,23 +32,28 @@ export function ImageFallback({
   onError,
   ...rest
 }: ImageFallbackProps) {
-  const cleanSrc = typeof src === "string" && src.trim() !== "" ? src : null;
+  const cleanSrc = typeof src === "string" && src.trim() !== "" ? resolveImageUrl(src.trim()) : null;
+  const fallbackSrc = typeof src === "string" ? gdriveFallbackUrl(src.trim()) : null;
 
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     cleanSrc ? "loading" : "error",
   );
+  const [triedFallback, setTriedFallback] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState<string | null>(cleanSrc);
 
   useEffect(() => {
     setStatus(cleanSrc ? "loading" : "error");
+    setTriedFallback(false);
+    setCurrentSrc(cleanSrc);
   }, [cleanSrc]);
 
   return (
     <ShadcnAvatar 
       className={`rounded-full overflow-hidden shrink-0 ${wrapperClassName} ${className}`}
     >
-      {cleanSrc && status !== "error" && (
+      {currentSrc && status !== "error" && (
         <AvatarImage
-          src={cleanSrc}
+          src={currentSrc}
           alt={alt}
           className={`${status === "loading" ? "bg-muted" : ""} object-cover`}
           onLoad={(e) => {
@@ -55,6 +61,11 @@ export function ImageFallback({
             onLoad?.(e);
           }}
           onError={(e) => {
+            if (!triedFallback && fallbackSrc && fallbackSrc !== currentSrc) {
+              setTriedFallback(true);
+              setCurrentSrc(fallbackSrc);
+              return;
+            }
             setStatus("error");
             onError?.(e);
           }}
