@@ -93,9 +93,9 @@ export function AdminGoalsTab({
   );
 
   const toggleGroup = (id: string) =>
-    setExpandedGroups((p) => ({ ...p, [id]: p[id] === undefined ? false : !p[id] }));
+    setExpandedGroups((p) => ({ ...p, [id]: !p[id] }));
   const toggleCat = (id: string) =>
-    setExpandedCats((p) => ({ ...p, [id]: p[id] === undefined ? false : !p[id] }));
+    setExpandedCats((p) => ({ ...p, [id]: !p[id] }));
 
   // ---- GROUP CRUD --------------------------------------------------------
   const addGroup = async () => {
@@ -452,7 +452,7 @@ export function AdminGoalsTab({
                     />
                   </>
                 )}
-                {(expandedGroups[node.group.id] !== false) ? (
+                {(expandedGroups[node.group.id] === true) ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground ml-1" />
                 ) : (
                   <ChevronDown className="w-5 h-5 text-muted-foreground ml-1" />
@@ -461,7 +461,7 @@ export function AdminGoalsTab({
             </div>
           );
         }}
-        isGroupExpanded={(id) => expandedGroups[id] !== false}
+        isGroupExpanded={(id) => expandedGroups[id] === true}
         toggleGroup={toggleGroup}
         renderGroupBody={(node) => {
           const isSystem = node.group.isSystem;
@@ -494,7 +494,7 @@ export function AdminGoalsTab({
         }}
         renderCategory={(node, catNode, ci) => {
           const catId = catNode.category.id;
-          const catExpanded = expandedCats[catId] !== false;
+          const catExpanded = expandedCats[catId] === true;
           const isFallbackCat = catId === FALLBACK_CATEGORY_ID;
           return (
             <Card key={catId} className="rounded-xl border-border overflow-hidden">
