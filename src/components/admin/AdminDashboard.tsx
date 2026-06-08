@@ -116,7 +116,7 @@ export function AdminDashboard({
       <div className="flex flex-col gap-6">
         {/* Scrollable Horizontal Tabs */}
         <div
-          className="sticky top-0 md:top-16 z-30 bg-card/95 backdrop-blur-sm rounded-2xl border border-border overflow-x-auto no-scrollbar scrollbar-hide snap-x px-2 py-1 shadow-soft"
+          className="sticky top-0 md:top-16 z-30 bg-card/95 backdrop-blur-sm rounded-2xl border border-border overflow-x-auto scrollbar-thin snap-x px-2 py-1 shadow-soft"
           onWheel={(e) => {
             if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
               e.currentTarget.scrollLeft += e.deltaY;
