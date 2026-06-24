@@ -155,12 +155,14 @@ const mapCategoryRow = (r: any) => ({
   name: r.name,
   groupId: r.group_id ?? undefined,
   order: r.order ?? 0,
+  description: r.description ?? undefined,
 });
 const mapCategoryInput = (c: any) => {
   const out: any = {};
   if (c.name !== undefined) out.name = c.name;
   if (c.groupId !== undefined) out.group_id = c.groupId || null;
   if (c.order !== undefined) out.order = c.order;
+  if (c.description !== undefined) out.description = c.description || null;
   return out;
 };
 
@@ -169,12 +171,19 @@ const mapGroupRow = (r: any) => ({
   name: r.name,
   order: r.order ?? 0,
   isSystem: !!r.is_system,
+  icon: r.icon ?? undefined,
+  description: r.description ?? undefined,
+  longDescription: r.long_description ?? undefined,
 });
 const mapGroupInput = (g: any) => {
   const out: any = {};
   if (g.name !== undefined) out.name = g.name;
   if (g.order !== undefined) out.order = g.order;
   if (g.isSystem !== undefined) out.is_system = g.isSystem;
+  if (g.icon !== undefined) out.icon = g.icon || null;
+  if (g.description !== undefined) out.description = g.description || null;
+  if (g.longDescription !== undefined)
+    out.long_description = g.longDescription || null;
   return out;
 };
 
