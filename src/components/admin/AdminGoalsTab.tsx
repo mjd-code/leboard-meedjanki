@@ -59,6 +59,67 @@ import {
 // /api/{groups|categories|masterGoals}/reorder with the full ordered ID list.
 // ---------------------------------------------------------------------------
 
+// Inline rename: click the name to edit in place. Enter/blur saves, Esc cancels.
+function InlineEditableText({
+  value,
+  onSave,
+  className,
+  inputClassName,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+  className?: string;
+  inputClassName?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    const v = draft.trim();
+    setEditing(false);
+    if (v && v !== value) onSave(v);
+    else setDraft(value);
+  };
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        className={
+          "bg-background border border-primary/50 rounded-md px-2 py-0.5 outline-none focus:ring-2 focus:ring-primary/40 min-w-0 w-full " +
+          (inputClassName || "")
+        }
+      />
+    );
+  }
+  return (
+    <span
+      className={
+        "group/edit inline-flex items-center gap-1.5 cursor-text min-w-0 " +
+        (className || "")
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      title="Klik untuk ubah nama"
+    >
+      <span className="truncate">{value}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+    </span>
+  );
+}
+
 export function AdminGoalsTab({
   masterGoals,
   refreshData,
