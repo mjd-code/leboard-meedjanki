@@ -221,6 +221,40 @@ export function AdminGoalsTab({
   const toggleCat = (id: string) =>
     setExpandedCats((p) => ({ ...p, [id]: !p[id] }));
 
+  // ---- INLINE VALIDATION -------------------------------------------------
+  // Returns an error message when the name is invalid, otherwise null.
+  const validateGroupName = (next: string, currentId: string): string | null => {
+    const v = next.trim();
+    if (!v) return "Nama grup tidak boleh kosong";
+    if (v.length > INLINE_NAME_MAX)
+      return `Nama grup maksimal ${INLINE_NAME_MAX} karakter`;
+    const dup = groups.some(
+      (g) =>
+        g.id !== currentId &&
+        (g.name || "").trim().toLowerCase() === v.toLowerCase(),
+    );
+    if (dup) return `Nama grup "${v}" sudah dipakai`;
+    return null;
+  };
+  const validateCategoryNameInGroup = (
+    next: string,
+    currentId: string,
+    groupId: string,
+  ): string | null => {
+    const v = next.trim();
+    if (!v) return "Nama kategori tidak boleh kosong";
+    if (v.length > INLINE_NAME_MAX)
+      return `Nama kategori maksimal ${INLINE_NAME_MAX} karakter`;
+    const dup = categories.some(
+      (c) =>
+        c.id !== currentId &&
+        (c.groupId || FALLBACK_GROUP_ID) === groupId &&
+        (c.name || "").trim().toLowerCase() === v.toLowerCase(),
+    );
+    if (dup) return `Nama kategori "${v}" sudah ada di grup ini`;
+    return null;
+  };
+
   // ---- GROUP CRUD --------------------------------------------------------
   const addGroup = async () => {
     const name = newGroupName.trim();
