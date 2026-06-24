@@ -59,37 +59,77 @@ import {
 // /api/{groups|categories|masterGoals}/reorder with the full ordered ID list.
 // ---------------------------------------------------------------------------
 
+// Max characters allowed for an inline-edited Group/Category name.
+const INLINE_NAME_MAX = 80;
+
 // Inline rename: click the name to edit in place. Enter/blur saves, Esc cancels.
+// Validates the draft, applies the new value optimistically, and reverts +
+// surfaces a toast if the async save rejects.
 function InlineEditableText({
   value,
   onSave,
+  validate,
   className,
   inputClassName,
 }: {
   value: string;
-  onSave: (next: string) => void;
+  /** Returns true on success. Falsy/throw reverts the optimistic value. */
+  onSave: (next: string) => Promise<boolean> | boolean;
+  /** Returns an error message string when invalid, otherwise null. */
+  validate?: (next: string) => string | null;
   className?: string;
   inputClassName?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const commit = () => {
+  const [display, setDisplay] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+    setDisplay(value);
+  }, [value]);
+
+  const commit = async () => {
     const v = draft.trim();
+    if (v === value.trim()) {
+      setEditing(false);
+      setDraft(value);
+      return;
+    }
+    const err = validate ? validate(v) : v ? null : "Nama tidak boleh kosong";
+    if (err) {
+      toast.error(err);
+      return; // keep the field open so the user can fix it
+    }
+    // Optimistic: close the editor and show the new value immediately.
     setEditing(false);
-    if (v && v !== value) onSave(v);
-    else setDraft(value);
+    setDisplay(v);
+    setSaving(true);
+    try {
+      const okSaved = await onSave(v);
+      if (!okSaved) setDisplay(value);
+    } catch {
+      setDisplay(value);
+    } finally {
+      setSaving(false);
+    }
   };
+
   if (editing) {
     return (
       <input
         autoFocus
         value={draft}
+        maxLength={INLINE_NAME_MAX}
         onChange={(e) => setDraft(e.target.value)}
         onClick={(e) => e.stopPropagation()}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
           if (e.key === "Escape") {
             setDraft(value);
             setEditing(false);
@@ -106,16 +146,21 @@ function InlineEditableText({
     <span
       className={
         "group/edit inline-flex items-center gap-1.5 cursor-text min-w-0 " +
+        (saving ? "opacity-60 " : "") +
         (className || "")
       }
       onClick={(e) => {
         e.stopPropagation();
-        setEditing(true);
+        if (!saving) setEditing(true);
       }}
       title="Klik untuk ubah nama"
     >
-      <span className="truncate">{value}</span>
-      <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+      <span className="truncate">{display}</span>
+      {saving ? (
+        <Loader2 className="h-3 w-3 animate-spin shrink-0 text-primary" />
+      ) : (
+        <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+      )}
     </span>
   );
 }
