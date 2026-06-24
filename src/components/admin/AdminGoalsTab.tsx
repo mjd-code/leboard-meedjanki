@@ -225,32 +225,51 @@ export function AdminGoalsTab({
   const addGroup = async () => {
     const name = newGroupName.trim();
     if (!name) return;
+    const dupErr = validateGroupName(name, "");
+    if (dupErr) {
+      toast.error(dupErr);
+      return;
+    }
     const order = (sortByOrder(groups).slice(-1)[0]?.order ?? -1) + 1;
-    const res = await apiFetch("/api/groups", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, order }),
-    });
-    if (!res.ok) alert(`Gagal membuat grup: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, order }),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal membuat grup: ${res.statusText}`);
+        return;
+      }
       setNewGroupName("");
+      toast.success(`Grup "${name}" dibuat`);
       refreshData();
+    } catch (e: any) {
+      toast.error(`Gagal membuat grup: ${e?.message || "kesalahan jaringan"}`);
     }
   };
 
-  const saveGroup = async (g: Group) => {
+  const saveGroup = async (g: Group): Promise<boolean> => {
     const url = g.id ? `/api/groups/${g.id}` : "/api/groups";
     const method = g.id ? "PUT" : "POST";
-    const res = await apiFetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(g),
-    });
-    if (!res.ok) alert(`Gagal menyimpan grup: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(g),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal menyimpan grup: ${res.statusText}`);
+        return false;
+      }
       setGroupModalOpen(false);
       setEditGroupData(null);
+      toast.success(`Grup "${g.name}" disimpan`);
       refreshData();
+      return true;
+    } catch (e: any) {
+      toast.error(`Gagal menyimpan grup: ${e?.message || "kesalahan jaringan"}`);
+      return false;
     }
   };
 
