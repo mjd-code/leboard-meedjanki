@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Target,
   ChevronUp,
@@ -10,6 +10,8 @@ import {
   ArrowDown,
   FolderTree,
   Layers,
+  Pencil,
+  MonitorPlay,
 } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { motion, AnimatePresence } from "motion/react";
@@ -56,6 +58,67 @@ import {
 // All three levels are user-orderable via ▲▼ buttons. Reorder calls hit
 // /api/{groups|categories|masterGoals}/reorder with the full ordered ID list.
 // ---------------------------------------------------------------------------
+
+// Inline rename: click the name to edit in place. Enter/blur saves, Esc cancels.
+function InlineEditableText({
+  value,
+  onSave,
+  className,
+  inputClassName,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+  className?: string;
+  inputClassName?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    const v = draft.trim();
+    setEditing(false);
+    if (v && v !== value) onSave(v);
+    else setDraft(value);
+  };
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        className={
+          "bg-background border border-primary/50 rounded-md px-2 py-0.5 outline-none focus:ring-2 focus:ring-primary/40 min-w-0 w-full " +
+          (inputClassName || "")
+        }
+      />
+    );
+  }
+  return (
+    <span
+      className={
+        "group/edit inline-flex items-center gap-1.5 cursor-text min-w-0 " +
+        (className || "")
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      title="Klik untuk ubah nama"
+    >
+      <span className="truncate">{value}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+    </span>
+  );
+}
 
 export function AdminGoalsTab({
   masterGoals,
@@ -405,7 +468,9 @@ export function AdminGoalsTab({
             Grup, Kategori & Tugas
           </h3>
           <p className="text-muted-foreground text-sm mt-3">
-            Kelola hierarki 3 tingkat dengan urutan kustom.
+            Kelola hierarki 3 tingkat dengan urutan kustom. Grup & kategori
+            tersinkron otomatis ke halaman Program publik — klik nama untuk ubah
+            cepat.
           </p>
         </div>
         <div className="flex flex-wrap gap-3 w-full sm:w-auto">
@@ -516,9 +581,27 @@ export function AdminGoalsTab({
                   <Layers className="h-5 w-5 text-primary shrink-0" />
                 )}
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="font-black text-foreground truncate">
-                    {node.group.name}
-                  </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isSystem ? (
+                      <span className="font-black text-foreground truncate">
+                        {node.group.name}
+                      </span>
+                    ) : (
+                      <InlineEditableText
+                        value={node.group.name}
+                        onSave={(name) => saveGroup({ ...node.group, name })}
+                        className="font-black text-foreground"
+                      />
+                    )}
+                    {!isSystem && (
+                      <span
+                        className="hidden sm:inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded-md shrink-0"
+                        title="Grup ini tampil sebagai kartu Program di halaman publik"
+                      >
+                        <MonitorPlay className="h-3 w-3" /> Program
+                      </span>
+                    )}
+                  </div>
                   {node.group.description && (
                     <span className="text-[11px] text-muted-foreground/90 italic truncate max-w-[42ch]">
                       {node.group.description}
@@ -647,9 +730,19 @@ export function AdminGoalsTab({
                   {!isFallbackCat && <DragHandle />}
                   <FolderTree className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-foreground truncate">
-                      {catNode.category.name}
-                    </span>
+                    {isFallbackCat ? (
+                      <span className="font-bold text-foreground truncate">
+                        {catNode.category.name}
+                      </span>
+                    ) : (
+                      <InlineEditableText
+                        value={catNode.category.name}
+                        onSave={(name) =>
+                          saveCategory({ ...catNode.category, name })
+                        }
+                        className="font-bold text-foreground"
+                      />
+                    )}
                     {catNode.category.description && (
                       <span className="text-[11px] text-muted-foreground/90 italic truncate max-w-[48ch]">
                         {catNode.category.description}
