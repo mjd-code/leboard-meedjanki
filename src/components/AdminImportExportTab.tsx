@@ -664,7 +664,6 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
     }
   };
 
-
   const runImport = async () => {
     if (!previewRows || previewRows.length === 0) return;
     // Full modes go through the dry-run planner. Names-only modes keep their
@@ -776,7 +775,8 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
             if (descCol) payload.description = row[descCol] || "";
             if (catNameCol && row[catNameCol])
               payload.categoryName = (row[catNameCol] || "").trim();
-            if (catIdCol && row[catIdCol]) payload.categoryId = row[catIdCol].trim();
+            if (catIdCol && row[catIdCol])
+              payload.categoryId = row[catIdCol].trim();
             if (orderCol && row[orderCol] !== "") {
               const o = parseInt(String(row[orderCol] || "0"), 10);
               if (!isNaN(o)) payload.order = o;
@@ -872,167 +872,167 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
 
   return (
     <>
-    <div className="p-4 sm:p-8 space-y-10">
-      {/* HEADER */}
-      <div>
-        <h3 className="text-2xl font-black text-foreground underline decoration-primary-500 decoration-4 underline-offset-8">
-          Import / Export
-        </h3>
-        <p className="text-muted-foreground font-medium mt-2 text-sm">
-          Backup, share, or seed data using CSV files. Exports always include
-          current live data.
-        </p>
-      </div>
-
-      {/* EXPORT SECTION */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Download className="w-5 h-5 text-primary" />
-          <h4 className="text-lg font-black text-foreground">Ekspor Data</h4>
+      <div className="p-4 sm:p-8 space-y-10">
+        {/* HEADER */}
+        <div>
+          <h3 className="text-2xl font-black text-foreground underline decoration-primary-500 decoration-4 underline-offset-8">
+            Import / Export
+          </h3>
+          <p className="text-muted-foreground font-medium mt-2 text-sm">
+            Backup, share, or seed data using CSV files. Exports always include
+            current live data.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-primary-50 border border-primary-200 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 lg:col-span-3">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center">
-                <Settings className="w-5 h-5" />
+        {/* EXPORT SECTION */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Download className="w-5 h-5 text-primary" />
+            <h4 className="text-lg font-black text-foreground">Ekspor Data</h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-primary-50 border border-primary-200 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 lg:col-span-3">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-primary-900 truncate">
+                    System Full Snapshot (JSON)
+                  </h4>
+                  <p className="text-xs text-primary-700">
+                    Export semua data termasuk murid, goals, post, kategory, dan
+                    log dalam satu klik.
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="font-bold text-primary-900 truncate">
-                  System Full Snapshot (JSON)
-                </h4>
-                <p className="text-xs text-primary-700">
-                  Export semua data termasuk murid, goals, post, kategory, dan
-                  log dalam satu klik.
+              <button
+                onClick={handleFullSnapshotJSONExport}
+                disabled={busy === "full_json" || isImporting}
+                className="mt-2 inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11 shadow-sm"
+              >
+                {busy === "full_json" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Export Full Snapshot (JSON)
+              </button>
+            </div>
+            <ExportCard
+              icon={Database}
+              title="Students"
+              subtitle="Profile + summary stats per student"
+              dataKey="students"
+              count={students?.length}
+            />
+            <ExportCard
+              icon={Database}
+              title="Tracks & Goals"
+              subtitle="All master goals with points & category"
+              dataKey="goals"
+              count={masterGoals?.length}
+            />
+            <ExportCard
+              icon={Database}
+              title="Categories"
+              subtitle="Goal category list (with group_id, order)"
+              dataKey="categories"
+              count={categories?.length}
+            />
+            <ExportCard
+              icon={Database}
+              title="Groups"
+              subtitle="Top-level group list (Kelas / Tingkatan)"
+              dataKey="groups"
+            />
+            <ExportCard
+              icon={FileText}
+              title="Assigned Tracks (long form)"
+              subtitle="One row per student × goal, with completion"
+              dataKey="tracks_full"
+            />
+            <ExportCard
+              icon={FileText}
+              title="Log Aktivitas"
+              subtitle="Aktivitas admin & pendidikan terbaru"
+              dataKey="logs"
+            />
+          </div>
+
+          {/* Stats export */}
+          <div className="bg-background border border-border rounded-2xl p-4 sm:p-5 mt-2">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-foreground">Statistics CSV</h4>
+                <p className="text-xs text-muted-foreground">
+                  Export aggregate stats for the selected time range.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(
+                    [
+                      { v: "today", l: "Today" },
+                      { v: "1w", l: "Last week" },
+                      { v: "1m", l: "Last month" },
+                      { v: "1y", l: "Last year" },
+                      { v: "all", l: "All time" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setStatsRange(opt.v)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                        statsRange === opt.v
+                          ? "bg-primary text-white border-primary-600"
+                          : "bg-card text-muted-foreground border-border hover:border-primary-300"
+                      }`}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                <button
+                  onClick={() => handleExport("stats_overview")}
+                  disabled={busy === "stats_overview"}
+                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11"
+                >
+                  {busy === "stats_overview" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Overview
+                </button>
+                <button
+                  onClick={() => handleExport("stats_chart")}
+                  disabled={busy === "stats_chart"}
+                  className="inline-flex items-center justify-center gap-2 bg-card border border-border text-foreground hover:bg-secondary font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11"
+                >
+                  {busy === "stats_chart" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Points Trend
+                </button>
               </div>
             </div>
-            <button
-              onClick={handleFullSnapshotJSONExport}
-              disabled={busy === "full_json" || isImporting}
-              className="mt-2 inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11 shadow-sm"
-            >
-              {busy === "full_json" ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              Export Full Snapshot (JSON)
-            </button>
           </div>
-          <ExportCard
-            icon={Database}
-            title="Students"
-            subtitle="Profile + summary stats per student"
-            dataKey="students"
-            count={students?.length}
-          />
-          <ExportCard
-            icon={Database}
-            title="Tracks & Goals"
-            subtitle="All master goals with points & category"
-            dataKey="goals"
-            count={masterGoals?.length}
-          />
-          <ExportCard
-            icon={Database}
-            title="Categories"
-            subtitle="Goal category list (with group_id, order)"
-            dataKey="categories"
-            count={categories?.length}
-          />
-          <ExportCard
-            icon={Database}
-            title="Groups"
-            subtitle="Top-level group list (Kelas / Tingkatan)"
-            dataKey="groups"
-          />
-          <ExportCard
-            icon={FileText}
-            title="Assigned Tracks (long form)"
-            subtitle="One row per student × goal, with completion"
-            dataKey="tracks_full"
-          />
-          <ExportCard
-            icon={FileText}
-            title="Log Aktivitas"
-            subtitle="Aktivitas admin & pendidikan terbaru"
-            dataKey="logs"
-          />
-        </div>
+        </section>
 
-        {/* Stats export */}
-        <div className="bg-background border border-border rounded-2xl p-4 sm:p-5 mt-2">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-foreground">Statistics CSV</h4>
-              <p className="text-xs text-muted-foreground">
-                Export aggregate stats for the selected time range.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(
-                  [
-                    { v: "today", l: "Today" },
-                    { v: "1w", l: "Last week" },
-                    { v: "1m", l: "Last month" },
-                    { v: "1y", l: "Last year" },
-                    { v: "all", l: "All time" },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.v}
-                    onClick={() => setStatsRange(opt.v)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                      statsRange === opt.v
-                        ? "bg-primary text-white border-primary-600"
-                        : "bg-card text-muted-foreground border-border hover:border-primary-300"
-                    }`}
-                  >
-                    {opt.l}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-              <button
-                onClick={() => handleExport("stats_overview")}
-                disabled={busy === "stats_overview"}
-                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11"
-              >
-                {busy === "stats_overview" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                Overview
-              </button>
-              <button
-                onClick={() => handleExport("stats_chart")}
-                disabled={busy === "stats_chart"}
-                className="inline-flex items-center justify-center gap-2 bg-card border border-border text-foreground hover:bg-secondary font-bold text-sm px-4 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11"
-              >
-                {busy === "stats_chart" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                Points Trend
-              </button>
-            </div>
+        {/* IMPORT SECTION */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" />
+            <h4 className="text-lg font-black text-foreground">Impor Data</h4>
           </div>
-        </div>
-      </section>
 
-      {/* IMPORT SECTION */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Upload className="w-5 h-5 text-primary" />
-          <h4 className="text-lg font-black text-foreground">Impor Data</h4>
-        </div>
-
-        <div className="bg-background border border-border rounded-2xl p-4 sm:p-5 space-y-4">
-          {/* Seed Data Dummies */}
-          {/* <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center p-4 bg-primary/10 rounded-xl border border-dashed border-primary mb-6">
+          <div className="bg-background border border-border rounded-2xl p-4 sm:p-5 space-y-4">
+            {/* Seed Data Dummies */}
+            {/* <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center p-4 bg-primary/10 rounded-xl border border-dashed border-primary mb-6">
             <div className="flex-1">
               <h5 className="font-bold text-sm text-primary-900">Seeding Data Dummies (Testing)</h5>
               <p className="text-xs text-primary-700 mt-1">Mengisi database Firestore dengan data sample: 1 Admin, beberapa murid, master goals, kategori dan artikel post. Akun master admin akan digenerate dengan email: admin@master.com, pass: admin</p>
@@ -1066,346 +1066,364 @@ Dokumen akan ditulis menggunakan ID asli (foreign-key & urutan grup/kategori tet
             </button>
           </div> */}
 
-          {/* Import JSON Full Snapshot */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center p-4 bg-muted/30 rounded-xl border border-dashed border-primary mb-6">
-            <div className="flex-1">
-              <h5 className="font-bold text-sm">Kembalikan Snapshot JSON</h5>
-              <p className="text-xs text-muted-foreground mt-1">
-                Menggabungkan/Restore data dari Full System Snapshot JSON.
-              </p>
-            </div>
-            <input
-              type="file"
-              accept=".json,application/json"
-              disabled={isImporting || busy === "import_json"}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onFilePickedJSON(f);
-                e.target.value = "";
-              }}
-              className="block flex-1 text-sm text-muted-foreground file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-primary file:text-white file:cursor-pointer"
-            />
-          </div>
-
-          {/* Relational JSON Restore — Progress */}
-          {(isImporting || importStatus) && (
-            <div className="p-4 rounded-xl border border-border bg-card space-y-2">
-              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-                {isImporting ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                )}
-                <span>JSON Snapshot Restore</span>
-                <span className="ml-auto font-mono text-xs text-muted-foreground">
-                  {importProgress}%
-                </span>
+            {/* Import JSON Full Snapshot */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center p-4 bg-muted/30 rounded-xl border border-dashed border-primary mb-6">
+              <div className="flex-1">
+                <h5 className="font-bold text-sm">Kembalikan Snapshot JSON</h5>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Menggabungkan/Restore data dari Full System Snapshot JSON.
+                </p>
               </div>
-              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${importProgress}%` }}
-                />
+              <input
+                type="file"
+                accept=".json,application/json"
+                disabled={isImporting || busy === "import_json"}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onFilePickedJSON(f);
+                  e.target.value = "";
+                }}
+                className="block flex-1 text-sm text-muted-foreground file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-primary file:text-white file:cursor-pointer"
+              />
+            </div>
+
+            {/* Relational JSON Restore — Progress */}
+            {(isImporting || importStatus) && (
+              <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  {isImporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  )}
+                  <span>JSON Snapshot Restore</span>
+                  <span className="ml-auto font-mono text-xs text-muted-foreground">
+                    {importProgress}%
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${importProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{importStatus}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{importStatus}</p>
-            </div>
-          )}
-
-          {/* Type selector */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-              What does the CSV contain?
-            </label>
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
-              {(
-                [
-                  { v: "students_names", l: "Student names", hint: '"name" column only' },
-                  { v: "students", l: "Students (full)", hint: "name, bio, tags, photo" },
-                  { v: "goals_titles", l: "Goal titles", hint: '"title" column only' },
-                  { v: "goals", l: "Goals (full)", hint: "title, points, category_id/name, order" },
-                  { v: "categories", l: "Categories", hint: "name, group_id, order" },
-                  { v: "groups", l: "Groups", hint: "name, order" },
-                ] as { v: ImportType; l: string; hint: string }[]
-              ).map((opt) => (
-                <button
-                  key={opt.v}
-                  onClick={() => {
-                    setImportType(opt.v);
-                    setImportMessage(null);
-                  }}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${
-                    importType === opt.v
-                      ? "border-primary-600 bg-primary/10"
-                      : "border-border bg-card hover:border-primary-300"
-                  }`}
-                >
-                  <div className="font-bold text-sm text-foreground">
-                    {opt.l}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {opt.hint}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* File picker */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onFilePicked(f);
-              }}
-              className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-card file:text-foreground file:border file:border-border hover:file:bg-secondary file:cursor-pointer"
-            />
-            {previewRows && (
-              <button
-                onClick={runImport}
-                disabled={busy === "import"}
-                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11 shrink-0"
-              >
-                {busy === "import" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4" />
-                )}
-                Import {previewRows.length} row
-                {previewRows.length === 1 ? "" : "s"}
-              </button>
             )}
-          </div>
 
-          {/* Status message */}
-          {importMessage && (
-            <div
-              className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
-                importMessage.type === "success"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {importMessage.type === "success" ? (
-                <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              )}
-              <span>{importMessage.text}</span>
-            </div>
-          )}
-
-          {/* Preview */}
-          {previewRows && previewRows.length > 0 && (
-            <div className="border border-border rounded-xl overflow-hidden">
-              <div className="px-3 py-2 bg-card border-b border-border text-xs font-bold text-muted-foreground">
-                Preview · {previewRows.length} row
-                {previewRows.length === 1 ? "" : "s"} · {previewHeaders.length}{" "}
-                column{previewHeaders.length === 1 ? "" : "s"}
+            {/* Type selector */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                What does the CSV contain?
+              </label>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                {(
+                  [
+                    // { v: "students_names", l: "Student names", hint: '"name" column only' },
+                    {
+                      v: "students",
+                      l: "Students (full)",
+                      hint: "name, bio, tags, photo",
+                    },
+                    // {
+                    //   v: "goals_titles",
+                    //   l: "Goal titles",
+                    //   hint: '"title" column only',
+                    // },
+                    {
+                      v: "goals",
+                      l: "Goals (full)",
+                      hint: "title, points, category_id/name, order",
+                    },
+                    {
+                      v: "categories",
+                      l: "Categories",
+                      hint: "name, group_id, order",
+                    },
+                    { v: "groups", l: "Groups", hint: "name, order" },
+                  ] as { v: ImportType; l: string; hint: string }[]
+                ).map((opt) => (
+                  <button
+                    key={opt.v}
+                    onClick={() => {
+                      setImportType(opt.v);
+                      setImportMessage(null);
+                    }}
+                    className={`text-left p-3 rounded-xl border-2 transition-all ${
+                      importType === opt.v
+                        ? "border-primary-600 bg-primary/10"
+                        : "border-border bg-card hover:border-primary-300"
+                    }`}
+                  >
+                    <div className="font-bold text-sm text-foreground">
+                      {opt.l}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {opt.hint}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <div className="overflow-x-auto max-h-72">
-                <table className="w-full text-xs">
-                  <thead className="bg-background sticky top-0">
-                    <tr>
-                      {previewHeaders.map((h) => (
-                        <th
-                          key={h}
-                          className="text-left font-bold text-foreground px-3 py-2 whitespace-nowrap"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewRows.slice(0, 25).map((r, i) => (
-                      <tr key={i} className="border-t border-border">
+            </div>
+
+            {/* File picker */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onFilePicked(f);
+                }}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-card file:text-foreground file:border file:border-border hover:file:bg-secondary file:cursor-pointer"
+              />
+              {previewRows && (
+                <button
+                  onClick={runImport}
+                  disabled={busy === "import"}
+                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-60 min-h-11 shrink-0"
+                >
+                  {busy === "import" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  Import {previewRows.length} row
+                  {previewRows.length === 1 ? "" : "s"}
+                </button>
+              )}
+            </div>
+
+            {/* Status message */}
+            {importMessage && (
+              <div
+                className={`flex items-start gap-2 p-3 rounded-xl text-sm font-medium ${
+                  importMessage.type === "success"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {importMessage.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                )}
+                <span>{importMessage.text}</span>
+              </div>
+            )}
+
+            {/* Preview */}
+            {previewRows && previewRows.length > 0 && (
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="px-3 py-2 bg-card border-b border-border text-xs font-bold text-muted-foreground">
+                  Preview · {previewRows.length} row
+                  {previewRows.length === 1 ? "" : "s"} ·{" "}
+                  {previewHeaders.length} column
+                  {previewHeaders.length === 1 ? "" : "s"}
+                </div>
+                <div className="overflow-x-auto max-h-72">
+                  <table className="w-full text-xs">
+                    <thead className="bg-background sticky top-0">
+                      <tr>
                         {previewHeaders.map((h) => (
-                          <td
+                          <th
                             key={h}
-                            className="px-3 py-1.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate"
+                            className="text-left font-bold text-foreground px-3 py-2 whitespace-nowrap"
                           >
-                            {r[h]}
-                          </td>
+                            {h}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {previewRows.length > 25 && (
-                  <div className="px-3 py-2 text-[11px] text-muted-foreground/60 bg-background border-t border-border">
-                    …and {previewRows.length - 25} more rows
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Hint */}
-          <div className="text-[11px] text-muted-foreground/60 leading-relaxed">
-            Tip: Export a sample first to see the exact column format expected.
-            New records are always added (no duplicate check).
-          </div>
-        </div>
-      </section>
-    </div>
-
-    {plan && planMode && (
-      <div className="fixed inset-0 bg-base-900/60 backdrop-blur-md z-[100] flex justify-center items-center p-4">
-        <div className="bg-card rounded-2xl shadow-soft w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div>
-              <h3 className="font-black text-lg text-foreground">
-                Dry-Run Preview · {planMode}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Nothing has been written yet. Review the diff and click Commit
-                to apply.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setPlan(null);
-                setPlanMode(null);
-              }}
-              disabled={committing}
-              className="p-2 hover:bg-secondary rounded-xl"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-
-          <div className="p-5 overflow-y-auto space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                <div className="text-2xl font-black text-emerald-700">
-                  {plan.toCreate.length}
-                </div>
-                <div className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                  Create
-                </div>
-              </div>
-              <div className="rounded-xl border border-primary-200 bg-primary/10 p-3">
-                <div className="text-2xl font-black text-primary">
-                  {plan.toUpdate.length}
-                </div>
-                <div className="text-xs font-bold text-primary uppercase tracking-wide">
-                  Update
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-background p-3">
-                <div className="text-2xl font-black text-muted-foreground">
-                  {plan.unchanged}
-                </div>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                  Unchanged
-                </div>
-              </div>
-              <div className="rounded-xl border border-red-200 bg-red-50 p-3">
-                <div className="text-2xl font-black text-red-700">
-                  {plan.invalid.length}
-                </div>
-                <div className="text-xs font-bold text-red-800 uppercase tracking-wide">
-                  Invalid
-                </div>
-              </div>
-            </div>
-
-            {plan.toUpdate.length > 0 && (
-              <div>
-                <h4 className="text-sm font-bold text-foreground mb-1">
-                  Updates ({plan.toUpdate.length})
-                </h4>
-                <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
-                  {plan.toUpdate.slice(0, 50).map((u) => (
-                    <li key={u.id} className="font-mono">
-                      <span className="text-primary">{u.id}</span> →{" "}
-                      {u.changedFields.join(", ")}
-                    </li>
-                  ))}
-                  {plan.toUpdate.length > 50 && (
-                    <li className="opacity-60">
-                      …and {plan.toUpdate.length - 50} more
-                    </li>
+                    </thead>
+                    <tbody>
+                      {previewRows.slice(0, 25).map((r, i) => (
+                        <tr key={i} className="border-t border-border">
+                          {previewHeaders.map((h) => (
+                            <td
+                              key={h}
+                              className="px-3 py-1.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate"
+                            >
+                              {r[h]}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {previewRows.length > 25 && (
+                    <div className="px-3 py-2 text-[11px] text-muted-foreground/60 bg-background border-t border-border">
+                      …and {previewRows.length - 25} more rows
+                    </div>
                   )}
-                </ul>
+                </div>
               </div>
             )}
 
-            {plan.toCreate.length > 0 && (
-              <div>
-                <h4 className="text-sm font-bold text-foreground mb-1">
-                  New records ({plan.toCreate.length})
-                </h4>
-                <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
-                  {plan.toCreate.slice(0, 50).map((c) => (
-                    <li key={c.row} className="font-mono">
-                      row {c.row}: {(c.data as any).name || (c.data as any).title}
-                    </li>
-                  ))}
-                  {plan.toCreate.length > 50 && (
-                    <li className="opacity-60">
-                      …and {plan.toCreate.length - 50} more
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
-
-            {plan.invalid.length > 0 && (
-              <div>
-                <h4 className="text-sm font-bold text-red-700 mb-1">
-                  Invalid rows ({plan.invalid.length})
-                </h4>
-                <ul className="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto border border-red-200 bg-red-50 rounded-xl p-2">
-                  {plan.invalid.slice(0, 50).map((v, i) => (
-                    <li key={i} className="font-mono">
-                      row {v.row}: {v.reason}
-                    </li>
-                  ))}
-                </ul>
-                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={ignoreInvalid}
-                    onChange={(e) => setIgnoreInvalid(e.target.checked)}
-                  />
-                  Skip invalid rows and commit the rest
-                </label>
-              </div>
-            )}
+            {/* Hint */}
+            <div className="text-[11px] text-muted-foreground/60 leading-relaxed">
+              Tip: Export a sample first to see the exact column format
+              expected. New records are always added (no duplicate check).
+            </div>
           </div>
-
-          <div className="flex justify-end gap-2 px-5 py-4 border-t border-border bg-background">
-            <button
-              onClick={() => {
-                setPlan(null);
-                setPlanMode(null);
-              }}
-              disabled={committing}
-              className="px-4 py-2.5 rounded-xl text-sm font-bold border border-border hover:bg-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={commitPlan}
-              disabled={
-                committing ||
-                (plan.invalid.length > 0 && !ignoreInvalid) ||
-                plan.toCreate.length + plan.toUpdate.length === 0
-              }
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary-700 disabled:opacity-60"
-            >
-              {committing && <Loader2 className="w-4 h-4 animate-spin" />}
-              Commit ({plan.toCreate.length + plan.toUpdate.length})
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
-    )}
+
+      {plan && planMode && (
+        <div className="fixed inset-0 bg-base-900/60 backdrop-blur-md z-[100] flex justify-center items-center p-4">
+          <div className="bg-card rounded-2xl shadow-soft w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h3 className="font-black text-lg text-foreground">
+                  Dry-Run Preview · {planMode}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Nothing has been written yet. Review the diff and click Commit
+                  to apply.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setPlan(null);
+                  setPlanMode(null);
+                }}
+                disabled={committing}
+                className="p-2 hover:bg-secondary rounded-xl"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="text-2xl font-black text-emerald-700">
+                    {plan.toCreate.length}
+                  </div>
+                  <div className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                    Create
+                  </div>
+                </div>
+                <div className="rounded-xl border border-primary-200 bg-primary/10 p-3">
+                  <div className="text-2xl font-black text-primary">
+                    {plan.toUpdate.length}
+                  </div>
+                  <div className="text-xs font-bold text-primary uppercase tracking-wide">
+                    Update
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-background p-3">
+                  <div className="text-2xl font-black text-muted-foreground">
+                    {plan.unchanged}
+                  </div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                    Unchanged
+                  </div>
+                </div>
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                  <div className="text-2xl font-black text-red-700">
+                    {plan.invalid.length}
+                  </div>
+                  <div className="text-xs font-bold text-red-800 uppercase tracking-wide">
+                    Invalid
+                  </div>
+                </div>
+              </div>
+
+              {plan.toUpdate.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-foreground mb-1">
+                    Updates ({plan.toUpdate.length})
+                  </h4>
+                  <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
+                    {plan.toUpdate.slice(0, 50).map((u) => (
+                      <li key={u.id} className="font-mono">
+                        <span className="text-primary">{u.id}</span> →{" "}
+                        {u.changedFields.join(", ")}
+                      </li>
+                    ))}
+                    {plan.toUpdate.length > 50 && (
+                      <li className="opacity-60">
+                        …and {plan.toUpdate.length - 50} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {plan.toCreate.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-foreground mb-1">
+                    New records ({plan.toCreate.length})
+                  </h4>
+                  <ul className="text-xs text-muted-foreground space-y-1 max-h-40 overflow-y-auto border border-border rounded-xl p-2">
+                    {plan.toCreate.slice(0, 50).map((c) => (
+                      <li key={c.row} className="font-mono">
+                        row {c.row}:{" "}
+                        {(c.data as any).name || (c.data as any).title}
+                      </li>
+                    ))}
+                    {plan.toCreate.length > 50 && (
+                      <li className="opacity-60">
+                        …and {plan.toCreate.length - 50} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {plan.invalid.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-red-700 mb-1">
+                    Invalid rows ({plan.invalid.length})
+                  </h4>
+                  <ul className="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto border border-red-200 bg-red-50 rounded-xl p-2">
+                    {plan.invalid.slice(0, 50).map((v, i) => (
+                      <li key={i} className="font-mono">
+                        row {v.row}: {v.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={ignoreInvalid}
+                      onChange={(e) => setIgnoreInvalid(e.target.checked)}
+                    />
+                    Skip invalid rows and commit the rest
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border bg-background">
+              <button
+                onClick={() => {
+                  setPlan(null);
+                  setPlanMode(null);
+                }}
+                disabled={committing}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold border border-border hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={commitPlan}
+                disabled={
+                  committing ||
+                  (plan.invalid.length > 0 && !ignoreInvalid) ||
+                  plan.toCreate.length + plan.toUpdate.length === 0
+                }
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                {committing && <Loader2 className="w-4 h-4 animate-spin" />}
+                Commit ({plan.toCreate.length + plan.toUpdate.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

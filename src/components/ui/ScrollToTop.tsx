@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ArrowUp } from 'lucide-react';
-import { Button } from './button';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowUp } from "lucide-react";
+import { Button } from "./button";
 
 export function ScrollToTop() {
   const [isVisible, setIsVisible] = useState(false);
@@ -16,12 +16,12 @@ export function ScrollToTop() {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -36,7 +36,7 @@ export function ScrollToTop() {
           <Button
             size="icon"
             onClick={scrollToTop}
-            className="rounded-full w-12 h-12 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white border-none flex items-center justify-center transition-colors"
+            className="rounded-xl w-12 h-12 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white border-none flex items-center justify-center transition-colors"
             title="Scroll to top"
           >
             <ArrowUp className="w-5 h-5" />

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
 import type { Post } from "../../lib/types";
@@ -12,9 +12,19 @@ import {
   User,
   ArrowRight,
   Eye,
+  Share2,
+  Copy,
+  Check,
+  List,
+  ChevronDown,
+  AArrowUp,
+  AArrowDown,
 } from "lucide-react";
-import { HScroller, HScrollItem } from "@/components/ui/HScroller";
-import { ArticleCard } from "@/components/ui/ArticleCard";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import { BlogContent } from "@/components/blog/BlogContent";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
@@ -35,7 +45,32 @@ function readingTime(html?: string) {
   return `${Math.max(1, Math.round(words / 200))} mnt baca`;
 }
 
+const TEXT_SIZE_STEPS = ["xs", "sm", "base", "lg", "xl", "2xl"] as const;
+
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
 export function BlogPostPage({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [textSizeIndex, setTextSizeIndex] = useState(2);
+
+  // State Manajemen Utama ToC Multi-Level
+  const [toc, setToc] = useState<TocItem[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
+
+  const [isTocDropdownOpen, setIsTocDropdownOpen] = useState(false);
+  const [isSticky, setIsSticky] = useState(false);
+
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const currentTextSizeStep = TEXT_SIZE_STEPS[textSizeIndex];
+
+  // Tanstack Queries
   const { data: allPosts = [] } = useQuery<Post[]>({
     queryKey: ["public-posts"],
     queryFn: async () => {
@@ -46,16 +81,16 @@ export function BlogPostPage({ slug }: { slug: string }) {
     },
   });
 
-  // Resolve author_id → full_name via admin_users
-  const { data: admins = [] } = useQuery<Array<{ id: string; full_name?: string; email?: string }>>({
+  const { data: admins = [] } = useQuery<
+    Array<{ id: string; full_name?: string; email?: string }>
+  >({
     queryKey: ["public-admin-authors"],
     queryFn: async () => {
       try {
         const res = await apiFetch("/api/admin_users");
         if (!res.ok) return [];
         const data = await res.json();
-        const list = Array.isArray(data) ? data : data.users || data.admins || [];
-        return list;
+        return Array.isArray(data) ? data : data.users || data.admins || [];
       } catch {
         return [];
       }
@@ -76,26 +111,115 @@ export function BlogPostPage({ slug }: { slug: string }) {
     },
   });
 
-  // Reading progress (sticky bar at top)
-  const [progress, setProgress] = React.useState(0);
+  // Scanner DOM Komprehensif H1 sampai H5 dengan pengaman Re-render
+  useEffect(() => {
+    if (isLoading || !post?.content) return;
 
-  // Track article read
-  React.useEffect(() => {
-    if (post && post.id) {
-      const KEY = `ppmh_read_${post.id}`;
-      // only count once per session
-      if (!sessionStorage.getItem(KEY)) {
-        sessionStorage.setItem(KEY, "1");
-        apiFetch("/api/track-article", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ postId: post.id }),
-        }).catch(console.error);
+    const syncLiveHeadings = () => {
+      const contentContainer = document.getElementById("blog-main-content");
+      if (!contentContainer) return;
+
+      const headings = contentContainer.querySelectorAll(
+        "h1, h2, h3, h4, h5, H1, H2, H3, H4, H5",
+      );
+      const tocItems: TocItem[] = [];
+
+      headings.forEach((heading, index) => {
+        const text = heading.textContent?.trim() || "";
+        if (!text) return;
+
+        let id = heading.getAttribute("id");
+        if (!id) {
+          id = text
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-");
+
+          if (!id) id = `heading-point-${index}`;
+          heading.setAttribute("id", id);
+        }
+
+        const level =
+          parseInt(heading.tagName.toUpperCase().replace("H", ""), 10) || 1;
+        tocItems.push({ id, text, level });
+      });
+
+      setToc((prev) => {
+        const isIdentical =
+          prev.length === tocItems.length &&
+          prev.every(
+            (item, i) =>
+              item.id === tocItems[i].id && item.text === tocItems[i].text,
+          );
+        return isIdentical ? prev : tocItems;
+      });
+    };
+
+    const timer1 = setTimeout(syncLiveHeadings, 80);
+    const timer2 = setTimeout(syncLiveHeadings, 450);
+
+    const contentContainer = document.getElementById("blog-main-content");
+    let observer: MutationObserver | null = null;
+    if (contentContainer) {
+      observer = new MutationObserver(syncLiveHeadings);
+      observer.observe(contentContainer, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      if (observer) observer.disconnect();
+    };
+  }, [post?.content, isLoading, textSizeIndex]);
+
+  // Click Outside Handler Dropdown ToC
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsTocDropdownOpen(false);
       }
     }
-  }, [post?.id]);
+    if (isTocDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTocDropdownOpen]);
 
-  React.useEffect(() => {
+  // Scroll Monitor & Detektor Heading Aktif Berdasarkan Titik Koordinat Viewport
+  useEffect(() => {
+    const handleScroll = () => {
+      if (anchorRef.current) {
+        const anchorTop = anchorRef.current.getBoundingClientRect().top;
+        setIsSticky(anchorTop <= 16);
+      }
+
+      if (toc.length === 0) return;
+
+      const scrollPosition = window.scrollY + 140;
+
+      for (let i = toc.length - 1; i >= 0; i--) {
+        const el = document.getElementById(toc[i].id);
+        if (el && el.offsetTop <= scrollPosition) {
+          setActiveId(toc[i].id);
+          return;
+        }
+      }
+      setActiveId("");
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [toc]);
+
+  // Reading Progress Bar Line
+  useEffect(() => {
     const onScroll = () => {
       const h = document.documentElement;
       const scrolled = h.scrollTop;
@@ -104,7 +228,6 @@ export function BlogPostPage({ slug }: { slug: string }) {
         max > 0 ? Math.min(100, Math.max(0, (scrolled / max) * 100)) : 0,
       );
     };
-    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
@@ -113,266 +236,466 @@ export function BlogPostPage({ slug }: { slug: string }) {
     };
   }, []);
 
-  // Related posts (strict same category, exclude current, sort by popularity)
-  const related = React.useMemo(() => {
+  const related = useMemo(() => {
     if (!post) return [];
-    const others = allPosts.filter((p) => p.id !== post.id);
-    const sameCat = others.filter(
-      (p) => (p.category || "") === (post.category || ""),
-    );
-    return sameCat
-      .sort(
-        (a, b) =>
-          (b.organic_views || 0) +
-          (b.offset_views || 0) -
-          ((a.organic_views || 0) + (a.offset_views || 0)),
+    return allPosts
+      .filter(
+        (p) => p.id !== post.id && (p.category || "") === (post.category || ""),
       )
-      .slice(0, 5);
+      .sort((a, b) => {
+        const viewsA = (a.organic_views || 0) + (a.offset_views || 0);
+        const viewsB = (b.organic_views || 0) + (b.offset_views || 0);
+        return viewsB - viewsA;
+      })
+      .slice(0, 6);
   }, [post, allPosts]);
 
+  const handleCopyLink = () => {
+    if (typeof window === "undefined") return;
+    try {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof window === "undefined" || !post) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  // Fungsi Lompat Ke Target Heading Secara Presisi
+  const scrollToHeading = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    setIsTocDropdownOpen(false);
+
+    const offset = 95;
+    const targetPosition =
+      target.getBoundingClientRect().top + window.scrollY - offset;
+
+    window.scrollTo({
+      top: targetPosition,
+      behavior: "smooth",
+    });
+  };
+
+  const handleIncreaseText = () => {
+    if (textSizeIndex < TEXT_SIZE_STEPS.length - 1) {
+      setTextSizeIndex((prev) => prev + 1);
+    }
+  };
+
+  const handleDecreaseText = () => {
+    if (textSizeIndex > 0) {
+      setTextSizeIndex((prev) => prev - 1); // <--- Diubah menjadi berkurang (prev - 1)
+    }
+  };
+
+  // PERBAIKAN UTAMA: Perhitungan skala khusus heading 1 - 5 yang responsif
+  const proseTextClass = useMemo(() => {
+    switch (currentTextSizeStep) {
+      case "xs":
+        return "prose-xs text-[13px] leading-relaxed [&_h1]:text-lg sm:[&_h1]:text-xl [&_h2]:text-base sm:[&_h2]:text-chart-2 [&_h3]:text-sm sm:[&_h3]:text-base [&_h4]:text-xs sm:[&_h4]:text-sm [&_h5]:text-[11px] sm:[&_h5]:text-xs";
+      case "sm":
+        return "prose-sm text-[14px] leading-relaxed [&_h1]:text-xl sm:[&_h1]:text-2xl [&_h2]:text-lg sm:[&_h2]:text-xl [&_h3]:text-base sm:[&_h3]:text-sm-h3 [&_h4]:text-sm sm:[&_h4]:text-base [&_h5]:text-xs sm:[&_h5]:text-sm";
+      case "lg":
+        return "prose-lg text-[17px] sm:text-[18px] leading-relaxed [&_h1]:text-3xl sm:[&_h1]:text-4xl [&_h2]:text-2xl sm:[&_h2]:text-3xl [&_h3]:text-xl sm:[&_h3]:text-2xl [&_h4]:text-lg sm:[&_h4]:text-xl [&_h5]:text-base sm:[&_h5]:text-lg";
+      case "xl":
+        return "prose-xl text-[19px] sm:text-[21px] leading-relaxed [&_h1]:text-4xl sm:[&_h1]:text-5xl [&_h2]:text-3xl sm:[&_h2]:text-4xl [&_h3]:text-2xl sm:[&_h3]:text-3xl [&_h4]:text-xl sm:[&_h4]:text-2xl [&_h5]:text-lg sm:[&_h5]:text-xl";
+      case "2xl":
+        return "prose-2xl text-[22px] sm:text-[25px] leading-loose [&_h1]:text-5xl sm:[&_h1]:text-6xl [&_h2]:text-4xl sm:[&_h2]:text-5xl [&_h3]:text-3xl sm:[&_h3]:text-4xl [&_h4]:text-2xl sm:[&_h4]:text-3xl [&_h5]:text-xl sm:[&_h5]:text-2xl";
+      case "base":
+      default:
+        return "prose-base text-[15px] sm:text-[16px] leading-relaxed [&_h1]:text-2xl sm:[&_h1]:text-3xl [&_h2]:text-xl sm:[&_h2]:text-2xl [&_h3]:text-lg sm:[&_h3]:text-xl [&_h4]:text-base sm:[&_h4]:text-lg [&_h5]:text-sm sm:[&_h5]:text-base";
+    }
+  }, [currentTextSizeStep]);
+
   return (
-    <div className="min-h-[100dvh] bg-background pb-20 flex flex-col">
-      {/* Reading progress bar */}
+    <div className="min-h-[100dvh] bg-background pb-24 flex flex-col antialiased selection:bg-amber-500/30">
       <div
         role="progressbar"
         aria-label="Progres baca"
         aria-valuenow={Math.round(progress)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        className="fixed top-0 left-0 right-0 h-1 z-[60] bg-transparent pointer-events-none"
+        className="fixed top-0 left-0 right-0 h-[3px] z-[60] bg-neutral-950 pointer-events-none"
       >
         <div
-          className="h-full bg-primary transition-[width] duration-150 ease-out"
+          className="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-[width] duration-150 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {post && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "NewsArticle",
-              headline: post.title,
-              image: post.featured_image ? [post.featured_image] : [],
-              datePublished: post.published_at,
-              dateModified: post.updated_at,
-              description: post.excerpt || post.title,
-              publisher: { "@type": "Organization", name: "PPMH Insight" },
-            }),
-          }}
-        />
-      )}
-
-      {/* Main Header Area */}
-      <header className="pt-6 sm:pt-10 px-4 max-w-4xl mx-auto w-full">
-        <Link
-          href="/blog"
-          className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors mb-8 pb-1 border-b border-transparent hover:border-foreground"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Kembali
-        </Link>
+      <header className="w-full pt-6 sm:pt-8 px-4 max-w-4xl mx-auto flex-1">
+        <div className="mb-6">
+          <Link
+            href="/about"
+            className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-amber-500 transition-colors group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" />{" "}
+            Kembali ke beranda
+          </Link>
+        </div>
 
         {isLoading ? (
-          <div className="space-y-6 animate-pulse mt-4">
-            <div className="h-4 bg-muted/60 w-32 rounded-full" />
-            <div className="h-10 sm:h-14 bg-muted/60 w-full rounded-lg" />
-            <div className="h-10 sm:h-14 bg-muted/60 w-3/4 rounded-lg" />
-            <div className="flex gap-4 mt-8">
-              <div className="h-8 bg-muted/60 w-20 rounded-full" />
-              <div className="h-8 bg-muted/60 w-24 rounded-full" />
-            </div>
-            <div className="h-[300px] bg-muted/60 w-full mt-8 rounded-2xl" />
+          <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
+            <div className="h-12 bg-neutral-900 w-full rounded-xl" />
+            <div className="h-[350px] bg-neutral-900 w-full rounded-[2rem] mt-4" />
           </div>
         ) : !post ? (
-          <div className="text-center py-24 border border-dashed border-border rounded-2xl mt-4">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">
-              Artikel tidak ditemukan
+          <div className="text-center py-24 border border-dashed border-emerald-950/30 rounded-3xl max-w-md mx-auto">
+            <h2 className="font-display text-xl font-bold text-slate-200">
+              Artikel Tidak Ditemukan
             </h2>
-            <p className="text-muted-foreground font-serif-body italic text-sm sm:text-base">
-              Mungkin artikel telah dipindahkan atau dihapus.
-            </p>
           </div>
         ) : (
-          <article className="mt-2">
-            {/* Meta Tags / Category */}
-            <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6">
-              {post.category && (
-                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest">
-                  {post.category}
-                </span>
+          <div className="space-y-2">
+            {/* HERO PANEL */}
+            <div className="relative rounded-[2rem] p-6 sm:p-8 md:p-10 border border-emerald-950/20 bg-gradient-to-b from-neutral-900/40 via-neutral-950/60 to-neutral-950/90 shadow-xl overflow-hidden">
+              {post.featured_image && (
+                <figure className="mb-6 overflow-hidden rounded-[2rem] border border-emerald-950/10 shadow-md">
+                  <ImageWithFallback
+                    src={post.featured_image}
+                    alt={post.title}
+                    fallbackType="gradient"
+                    fill
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 960px"
+                    containerClassName="w-full aspect-[16/10] sm:aspect-[16/8]"
+                    className="object-cover"
+                  />
+                </figure>
               )}
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
-                <CalendarDays className="w-3.5 h-3.5" />
-                <time dateTime={post.published_at || ""}>
-                  {formatDate(post.published_at)}
-                </time>
-              </div>
-              <span className="text-muted-foreground/30 text-[10px] sm:text-xs hidden sm:inline">
-                •
-              </span>
-              <div className="flex gap-4 sm:gap-4 ml-auto sm:ml-0">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
-                  <Clock className="w-3.5 h-3.5" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/[0.02] to-transparent pointer-events-none" />
+
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs mb-6 border-b border-emerald-950/20">
+                {post.category && (
+                  <span className="px-3 py-1 bg-amber-500 text-neutral-950 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                    {post.category}
+                  </span>
+                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground font-medium text-[11px]">
+                  <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
+                  <time dateTime={post.published_at || ""}>
+                    {formatDate(post.published_at)}
+                  </time>
+                </div>
+                <span className="text-neutral-800 hidden sm:inline">•</span>
+                <div className="flex items-center gap-1.5 text-muted-foreground font-medium text-[11px]">
+                  <Clock className="w-3.5 h-3.5 text-emerald-600" />
                   <span>{readingTime(post.content)}</span>
                 </div>
-                <div
-                  className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium"
-                  title="Total Views"
-                >
-                  <Eye className="w-3.5 h-3.5" />
+                <span className="text-neutral-800 hidden sm:inline">•</span>
+                <div className="flex items-center gap-1.5 text-muted-foreground font-medium text-[11px]">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600" />
                   <span>
-                    {(post.organic_views || 0) + (post.offset_views || 0)} views
+                    {(
+                      (post.organic_views || 0) + (post.offset_views || 0)
+                    ).toLocaleString()}
                   </span>
                 </div>
               </div>
+
+              <div className="space-y-4 max-w-4xl">
+                <h1 className="font-display text-2xl sm:text-3xl font-black text-slate-100 leading-tight tracking-tight">
+                  {post.title}
+                </h1>
+                {post.excerpt && (
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed border-l-2 border-emerald-800/40 pl-3">
+                    {post.excerpt}
+                  </p>
+                )}
+              </div>
+
+              {(post.author_id || (post as any).author) && (
+                <div className="flex items-center gap-3 mt-6 pt-5 border-t border-emerald-950/20">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-neutral-900 to-neutral-950 border border-neutral-800 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-black block leading-none mb-1">
+                      Kontributor Isu
+                    </span>
+                    <span className="text-xs font-bold text-slate-200">
+                      {(() => {
+                        const authorId =
+                          (post as any).author || post.author_id || "";
+                        const match = admins.find((a) => a.id === authorId);
+                        return (
+                          match?.full_name ||
+                          match?.email ||
+                          authorId ||
+                          "Anonim"
+                        );
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Title & Excerpt */}
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-foreground leading-[1.1] tracking-tight text-pretty">
-              {post.title}
-            </h1>
-            {post.excerpt && (
-              <p className="font-serif-body italic text-base sm:text-lg md:text-xl text-muted-foreground mt-6 leading-relaxed">
-                {post.excerpt}
-              </p>
-            )}
+            {/* ANTI-JUMPING LAYOUT BARRIER */}
+            <div
+              ref={anchorRef}
+              className={`w-full transition-all duration-75 ${
+                isSticky ? "h-[56px] mb-6" : "h-px"
+              }`}
+            />
 
-            {/* Author */}
-            {(post.author_id || (post as any).author) && (
-              <div className="flex items-center gap-3 mt-8 pb-8 border-b border-border/40">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-muted-foreground" />
+            {/* PERBAIKAN UTAMA: Kondisional dihilangkan agar toolbar terus terlihat meskipun toc kosong */}
+            <div
+              ref={dropdownRef}
+              className={`w-full z-50 transition-all duration-300 ${
+                isSticky
+                  ? "fixed top-4 left-0 right-0 max-w-4xl mx-auto px-4 drop-shadow-2xl animate-in fade-in slide-in-from-top-1"
+                  : "relative mb-6"
+              }`}
+            >
+              <div className="w-full h-[56px] rounded-2xl border border-neutral-900 bg-neutral-950/85 backdrop-blur-md px-2.5 flex items-center justify-between gap-4 shadow-xl">
+                {/* Blok Menu Navigasi Berjenjang (H1 - H5) */}
+                <div className="relative flex-1 min-w-0">
+                  <button
+                    onClick={() => setIsTocDropdownOpen((prev) => !prev)}
+                    disabled={toc.length === 0}
+                    className="w-full flex items-center justify-between gap-2 px-3 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-slate-200 text-xs font-bold transition-all hover:border-neutral-700 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <List className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span className="truncate">
+                        {toc.length > 0
+                          ? toc.find((t) => t.id === activeId)?.text ||
+                            "Daftar Bahasan Artikel"
+                          : "Tidak Ada Struktur Pembahasan"}
+                      </span>
+                    </div>
+                    {toc.length > 0 && (
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isTocDropdownOpen ? "rotate-180" : ""}`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Dropdown Items List */}
+                  {isTocDropdownOpen && toc.length > 0 && (
+                    <div className="absolute left-0 right-0 mt-2 z-20 max-h-[340px] overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2 shadow-2xl space-y-0.5 scrollbar-hide animate-in zoom-in-95 duration-150">
+                      {toc.map((item) => {
+                        const isActive = activeId === item.id;
+
+                        // MASTER ENGINE HIERARKI: Indentasi & Simbol Berjenjang Sesuai Level Heading (1-5)
+                        let indentClass =
+                          "pl-2 font-bold text-slate-100 text-[12.5px]"; // Default H1
+                        let arrowPrefix = "";
+
+                        if (item.level === 2) {
+                          indentClass =
+                            "pl-6 text-slate-300 text-[12px] font-semibold";
+                          arrowPrefix = "↳ ";
+                        } else if (item.level === 3) {
+                          indentClass =
+                            "pl-10 text-slate-400 text-[11.5px] font-medium";
+                          arrowPrefix = "↳ ↳ ";
+                        } else if (item.level === 4) {
+                          indentClass = "pl-14 text-neutral-400 text-[11px]";
+                          arrowPrefix = "↳ ↳ ↳ ";
+                        } else if (item.level >= 5) {
+                          indentClass =
+                            "pl-[72px] text-neutral-500 text-[10.5px] italic";
+                          arrowPrefix = "↳ ↳ ↳ ↳ ";
+                        }
+
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              scrollToHeading(item.id);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors truncate block ${indentClass} ${
+                              isActive
+                                ? "bg-amber-500/10 text-amber-400 font-black border-l-2 border-amber-500 rounded-l-none"
+                                : "hover:bg-neutral-900 hover:text-slate-200"
+                            }`}
+                          >
+                            {arrowPrefix}
+                            {item.text}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold leading-none mb-1">
-                    Penulis
+
+                {/* Blok Utilitas Font & Aksi Share */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center bg-neutral-900 h-9 rounded-xl border border-neutral-800 px-1">
+                    <button
+                      onClick={handleDecreaseText}
+                      disabled={textSizeIndex === 0}
+                      className="px-2 text-slate-400 disabled:opacity-20 hover:text-slate-200 transition-colors"
+                      title="Perkecil Font"
+                    >
+                      <AArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[9px] font-mono text-amber-400 font-black uppercase px-1 text-center min-w-[32px]">
+                      {currentTextSizeStep}
+                    </span>
+                    <button
+                      onClick={handleIncreaseText}
+                      disabled={textSizeIndex === TEXT_SIZE_STEPS.length - 1}
+                      className="px-2 text-slate-400 disabled:opacity-20 hover:text-slate-200 transition-colors"
+                      title="Perbesar Font"
+                    >
+                      <AArrowUp className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {(() => {
-                      const authorId =
-                        (post as any).author || post.author_id || "";
-                      const match = admins.find((a) => a.id === authorId);
-                      return (
-                        match?.full_name ||
-                        match?.email ||
-                        authorId ||
-                        "Anonim"
-                      );
-                    })()}
-                  </div>
+
+                  <div className="w-px h-5 bg-neutral-800 mx-0.5" />
+
+                  <button
+                    onClick={handleCopyLink}
+                    className="h-9 px-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-slate-200 text-xs font-bold transition-all hover:border-neutral-700"
+                  >
+                    {copied ? (
+                      <div className="flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400 hidden sm:inline">
+                          Tersalin!
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="hidden sm:inline">Salin</span>
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleNativeShare}
+                    className="p-2 h-9 w-9 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-slate-200 transition-all hover:border-neutral-700"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Featured Image */}
-            {post.featured_image && (
-              <figure className="my-8 sm:my-12 -mx-4 sm:mx-0">
-                <ImageWithFallback
-                  src={post.featured_image || null}
-                  alt={post.title}
-                  fallbackType="gradient"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 800px"
-                  containerClassName="w-full aspect-[4/3] sm:aspect-[16/9] sm:rounded-3xl shadow-sm"
-                />
-              </figure>
-            )}
-
-            {/* Content Body */}
-            <div className="px-0 sm:px-4 md:px-8 max-w-[800px] mx-auto">
+            {/* KONTEN ARTIKEL UTAMA DENGAN FILTER OVERRIDE HEADING */}
+            <div
+              id="blog-main-content"
+              className="max-w-4xl mx-auto px-0 sm:px-4"
+            >
               <BlogContent
                 html={post.content}
-                className="dropcap font-serif-body text-foreground/90 prose prose-base sm:prose-lg max-w-none
-                           prose-headings:font-display prose-headings:font-bold prose-headings:text-foreground
-                           prose-p:leading-[1.8] prose-p:text-[1.05rem] sm:prose-p:text-[1.125rem]
-                           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                           prose-img:rounded-2xl prose-img:mx-auto prose-img:w-full prose-img:shadow-sm
-                           [&_p]:my-6
-                           [&_h1]:text-3xl sm:[&_h1]:text-4xl [&_h1]:mt-14 [&_h1]:mb-6 [&_h1]:font-black
-                           [&_h2]:text-2xl sm:[&_h2]:text-3xl [&_h2]:mt-12 [&_h2]:mb-5 [&_h2]:font-bold
-                           [&_h3]:text-xl sm:[&_h3]:text-2xl [&_h3]:mt-10 [&_h3]:mb-4
-                           [&_h4]:text-lg sm:[&_h4]:text-xl [&_h4]:mt-8 [&_h4]:mb-3
-                           [&_ul]:list-disc [&_ul]:pl-5 sm:[&_ul]:pl-6 [&_ul]:my-6 [&_ul_li]:my-2
-                           [&_ol]:list-decimal [&_ol]:pl-5 sm:[&_ol]:pl-6 [&_ol]:my-6 [&_ol_li]:my-2
-                           [&_blockquote]:my-8 [&_blockquote]:border-l-4 [&_blockquote]:border-primary/60 [&_blockquote]:bg-primary/5 [&_blockquote]:py-3 [&_blockquote]:pr-4 [&_blockquote]:pl-5 sm:[&_blockquote]:pl-6 [&_blockquote]:italic [&_blockquote]:rounded-r-xl
-                           [&_pre]:my-8 [&_pre]:bg-[#18181b] [&_pre]:text-gray-100 [&_pre]:p-5 sm:[&_pre]:p-6 [&_pre]:rounded-2xl [&_pre]:overflow-x-auto [&_pre]:text-sm sm:[&_pre]:text-base
-                           [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded text-foreground [&_code]:font-mono [&_code]:text-[0.9em]
-                           [&_hr]:my-12 [&_hr]:border-border/60"
+                className={`dropcap font-serif-body text-slate-300 prose max-w-none transition-all duration-150
+                           ${proseTextClass}
+                           prose-headings:font-display prose-headings:font-bold prose-headings:text-slate-100
+                           prose-p:text-slate-300
+                           prose-a:text-amber-400 prose-a:no-underline hover:prose-a:underline
+                           prose-img:rounded-2xl prose-img:shadow-md
+                           [&_p]:my-5
+                           [&_h1]:mt-10 [&_h1]:mb-4 [&_h1]:font-black border-b border-emerald-950/10 pb-2
+                           [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:font-bold border-b border-emerald-950/5 pb-1
+                           [&_h3]:mt-6 [&_h3]:mb-3
+                           [&_h4]:mt-5 [&_h4]:mb-2 [&_h4]:font-semibold
+                           [&_h5]:mt-4 [&_h5]:mb-2 [&_h5]:font-medium text-slate-400
+                           [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-amber-500 [&_blockquote]:bg-neutral-950 [&_blockquote]:py-3 [&_blockquote]:pl-5 [&_blockquote]:italic [&_blockquote]:rounded-r-xl
+                           [&_pre]:my-6 [&_pre]:bg-neutral-950 [&_pre]:p-4 [&_pre]:rounded-xl
+                           [&_code]:bg-neutral-900 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-amber-400 [&_code]:font-mono`}
               />
             </div>
 
-            {/* End mark */}
-            <div className="text-center mt-16 mb-10">
-              <span className="inline-block w-2 h-2 bg-primary rotate-45 rounded-sm" />
+            <div className="text-center pt-8 pb-4">
+              <span className="inline-block w-1.5 h-1.5 bg-amber-500 rotate-45 rounded-sm shadow-sm" />
             </div>
 
-            {/* Suggestions / Related Posts */}
+            {/* REKOMENDASI ARTIKEL */}
             {related.length > 0 && (
               <aside
-                className="mt-16 sm:mt-24 pt-12 border-t border-border/40"
-                aria-label="Saran postingan lain"
+                className="pt-10 border-t border-emerald-950/20"
+                aria-label="Saran postingan terkait"
               >
-                <div className="flex items-center justify-between gap-4 mb-8">
-                  <div className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-widest">
-                    <ArrowRight className="w-4 h-4 text-primary" /> Lanjutkan
-                    Membaca
+                <div className="flex items-center justify-between gap-4 mb-6 px-1">
+                  <div className="flex items-center gap-2 text-xs font-black text-slate-200 uppercase tracking-widest">
+                    <ArrowRight className="w-4 h-4 text-amber-500" /> Eksplorasi
+                    Terkait
                   </div>
                   <Link
                     href="/blog"
-                    className="text-primary text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:underline"
+                    className="text-amber-500 text-[11px] font-bold uppercase tracking-widest hover:text-amber-400"
                   >
-                    Semua Artikel
+                    Semua Berita
                   </Link>
                 </div>
 
-                <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 gap-5 pb-4">
-                  {related.map((rp) => (
-                    <Link
-                      key={rp.id}
-                      href={`/blog/${rp.slug || rp.id}`}
-                      className="snap-start shrink-0 w-[200px] flex flex-col group"
-                    >
-                      <ImageWithFallback
-                        src={rp.featured_image || null}
-                        alt={rp.title}
-                        fallbackType="gradient"
-                        fill
-                        sizes="320px"
-                        containerClassName="w-full aspect-[16/10] sm:aspect-video rounded-2xl overflow-hidden mb-4 shadow-sm"
-                        className="transition-transform duration-500 md:group-hover:scale-105"
-                      />
-                      <div className="flex items-center gap-2 mb-2">
-                        {rp.category && (
-                          <span className="text-[10px] uppercase tracking-widest font-bold text-primary">
-                            {rp.category}
-                          </span>
-                        )}
-                        <span className="text-muted-foreground/30 text-[10px]">
-                          •
-                        </span>
-                        <div className="flex items-center text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                          <Eye className="w-3 h-3 mr-1" />{" "}
-                          {(rp.organic_views || 0) + (rp.offset_views || 0)}{" "}
-                          views
-                        </div>
-                      </div>
-                      <h3 className="font-display text-base sm:text-lg font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
-                        {rp.title}
-                      </h3>
-                      {rp.excerpt && (
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                          {rp.excerpt}
-                        </p>
-                      )}
-                    </Link>
-                  ))}
-                </div>
+                <Carousel
+                  opts={{ align: "start", loop: false, dragFree: true }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-4 pb-2">
+                    {related.map((rp) => (
+                      <CarouselItem
+                        key={rp.id}
+                        className="pl-4 basis-[70%] sm:basis-[45%] md:basis-[33.33%]"
+                      >
+                        <Link
+                          href={`/blog/${rp.slug || rp.id}`}
+                          className="group flex flex-col bg-neutral-950 border border-neutral-900/60 p-3 rounded-2xl h-full transition-all hover:border-emerald-800/40 shadow-sm"
+                        >
+                          {/* PERBAIKAN UTAMA: containerClassName dipasang langsung ke ImageWithFallback untuk mengunci aspek rasio fill layout */}
+                          <ImageWithFallback
+                            src={rp.featured_image || null}
+                            alt={rp.title}
+                            fallbackType="gradient"
+                            fill
+                            sizes="(max-width: 640px) 240px, 320px"
+                            containerClassName="relative w-full aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-neutral-900"
+                            className="transition-transform duration-500 group-hover:scale-103 object-cover"
+                          />
+
+                          <div className="flex items-center gap-2 mb-1.5">
+                            {rp.category && (
+                              <span className="text-[9px] uppercase tracking-wider font-black text-amber-500">
+                                {rp.category}
+                              </span>
+                            )}
+                            <span className="text-neutral-800 text-[9px]">
+                              •
+                            </span>
+                            <div className="flex items-center text-[9px] font-semibold text-muted-foreground">
+                              <Eye className="w-2.5 h-2.5 mr-1 text-emerald-600" />{" "}
+                              {(
+                                (rp.organic_views || 0) + (rp.offset_views || 0)
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+
+                          <h3 className="font-display text-xs sm:text-sm font-bold text-slate-100 leading-snug line-clamp-2 group-hover:text-amber-400 transition-colors">
+                            {rp.title}
+                          </h3>
+                        </Link>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
               </aside>
             )}
-          </article>
+          </div>
         )}
       </header>
     </div>

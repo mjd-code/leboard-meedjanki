@@ -32,17 +32,17 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { PopoverSelect } from "@/components/ui/PopoverSelect";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Trash2, 
-  Search, 
-  Filter, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Search,
+  Filter,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
 } from "lucide-react";
 
 export interface DataTableProps<TData, TValue> {
@@ -63,13 +63,16 @@ export function DataTable<TData, TValue>({
   onDeleteSelected,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  
+
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
 
   useEffect(() => {
@@ -100,7 +103,9 @@ export function DataTable<TData, TValue>({
 
   const handleBulkDelete = () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const ids = selectedRows.map((row) => (row.original as any).id).filter(Boolean);
+    const ids = selectedRows
+      .map((row) => (row.original as any).id)
+      .filter(Boolean);
     if (onDeleteSelected) onDeleteSelected(ids);
     table.setRowSelection({});
   };
@@ -151,7 +156,10 @@ export function DataTable<TData, TValue>({
     <div className="flex flex-col gap-4">
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => (
-          <Card key={row.id} className="rounded-xl shadow-soft border border-border">
+          <Card
+            key={row.id}
+            className="rounded-xl shadow-soft border border-border"
+          >
             <CardContent className="p-4 flex flex-col gap-2 relative">
               {row.getVisibleCells().map((cell) => {
                 const headerTitle =
@@ -170,7 +178,7 @@ export function DataTable<TData, TValue>({
                     <span className="text-foreground text-right break-words min-w-0 line-clamp-2">
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </span>
                   </div>
@@ -193,39 +201,43 @@ export function DataTable<TData, TValue>({
         <Table className="min-w-full">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b border-border/50 bg-secondary/30">
+              <TableRow
+                key={headerGroup.id}
+                className="border-b border-border/50 bg-secondary/30"
+              >
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
                   return (
-                    <TableHead key={header.id} className="font-semibold text-foreground whitespace-nowrap px-4 py-3 h-10">
-                      {header.isPlaceholder
-                        ? null
-                        : canSort
-                        ? (
-                            <button
-                              type="button"
-                              onClick={header.column.getToggleSortingHandler()}
-                              className="inline-flex items-center gap-1.5 select-none cursor-pointer hover:text-primary transition-colors group"
-                              title="Klik untuk mengurutkan"
-                            >
-                              {flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                              {sorted === "asc" ? (
-                                <ArrowUp className="h-3.5 w-3.5 text-primary" />
-                              ) : sorted === "desc" ? (
-                                <ArrowDown className="h-3.5 w-3.5 text-primary" />
-                              ) : (
-                                <ArrowUpDown className="h-3.5 w-3.5 opacity-30 group-hover:opacity-70" />
-                              )}
-                            </button>
-                          )
-                        : flexRender(
+                    <TableHead
+                      key={header.id}
+                      className="font-semibold text-foreground whitespace-nowrap px-4 py-3 h-10"
+                    >
+                      {header.isPlaceholder ? null : canSort ? (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          className="inline-flex items-center gap-1.5 select-none cursor-pointer hover:text-primary transition-colors group"
+                          title="Klik untuk mengurutkan"
+                        >
+                          {flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
+                          {sorted === "asc" ? (
+                            <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          ) : sorted === "desc" ? (
+                            <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 opacity-30 group-hover:opacity-70" />
+                          )}
+                        </button>
+                      ) : (
+                        flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )
+                      )}
                     </TableHead>
                   );
                 })}
@@ -241,8 +253,14 @@ export function DataTable<TData, TValue>({
                   className="hover:bg-secondary/20 transition-colors border-border/40"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="px-4 py-3 align-middle max-w-[200px] sm:max-w-none truncate sm:whitespace-normal">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    <TableCell
+                      key={cell.id}
+                      className="px-4 py-3 align-middle max-w-[200px] sm:max-w-none truncate sm:whitespace-normal"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -268,14 +286,22 @@ export function DataTable<TData, TValue>({
       {/* Responsive Toolbar */}
       <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between w-full">
         {/* Search */}
-        <div className="relative w-full md:max-w-md shrink-0">
+        <div className="relative w-full md:max-w-xs lg:max-w-md shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={filterPlaceholder}
-            value={filterColumn ? (table.getColumn(filterColumn)?.getFilterValue() as string ?? "") : globalFilter}
+            value={
+              filterColumn
+                ? ((table
+                    .getColumn(filterColumn)
+                    ?.getFilterValue() as string) ?? "")
+                : globalFilter
+            }
             onChange={(event) => {
               if (filterColumn) {
-                table.getColumn(filterColumn)?.setFilterValue(event.target.value);
+                table
+                  .getColumn(filterColumn)
+                  ?.setFilterValue(event.target.value);
               } else {
                 setGlobalFilter(event.target.value);
               }
@@ -287,19 +313,30 @@ export function DataTable<TData, TValue>({
         {/* Action Buttons and View Toggle */}
         <div className="flex flex-row items-center gap-2 overflow-x-auto md:overflow-visible pb-1 md:pb-0 scrollbar-hide md:shrink-0 w-full md:w-auto">
           {selectedCount > 0 && onDeleteSelected && (
-            <Button variant="destructive" onClick={handleBulkDelete} className="gap-2 shadow-sm rounded-xl h-10 whitespace-nowrap shrink-0">
-              <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Hapus</span> ({selectedCount})
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              className="gap-2 shadow-sm rounded-xl h-10 whitespace-nowrap shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />{" "}
+              <span className="hidden sm:inline">Hapus</span> ({selectedCount})
             </Button>
           )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 rounded-xl border-border bg-background shadow-soft h-10 shrink-0">
+              <Button
+                variant="outline"
+                className="gap-2 rounded-xl border-border bg-background shadow-soft h-10 shrink-0"
+              >
                 <Filter className="h-4 w-4" />
                 <span className="hidden sm:inline">Kolom</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px] rounded-xl shadow-md border-border shrink-0">
+            <DropdownMenuContent
+              align="end"
+              className="w-[200px] rounded-xl shadow-md border-border shrink-0"
+            >
               <DropdownMenuLabel>Tampilkan Kolom</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {table
@@ -311,9 +348,15 @@ export function DataTable<TData, TValue>({
                       key={column.id}
                       className="capitalize font-medium cursor-pointer"
                       checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
                     >
-                      {column.id === "select" || column.id === "actions" ? column.id : typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id}
+                      {column.id === "select" || column.id === "actions"
+                        ? column.id
+                        : typeof column.columnDef.header === "string"
+                          ? column.columnDef.header
+                          : column.id}
                     </DropdownMenuCheckboxItem>
                   );
                 })}
@@ -322,12 +365,18 @@ export function DataTable<TData, TValue>({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 rounded-xl border-border bg-background shadow-soft h-10 shrink-0">
+              <Button
+                variant="outline"
+                className="gap-2 rounded-xl border-border bg-background shadow-soft h-10 shrink-0"
+              >
                 <ArrowUpDown className="h-4 w-4" />
                 <span className="hidden sm:inline">Pilih Urutan</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px] rounded-xl shadow-md border-border">
+            <DropdownMenuContent
+              align="end"
+              className="w-[200px] rounded-xl shadow-md border-border"
+            >
               <DropdownMenuLabel>Urutkan Berdasarkan</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {table
@@ -348,8 +397,16 @@ export function DataTable<TData, TValue>({
                         }
                       }}
                     >
-                      {column.id === "select" || column.id === "actions" ? column.id : typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id} 
-                      {isSorted === "asc" ? " (A-Z)" : isSorted === "desc" ? " (Z-A)" : ""}
+                      {column.id === "select" || column.id === "actions"
+                        ? column.id
+                        : typeof column.columnDef.header === "string"
+                          ? column.columnDef.header
+                          : column.id}
+                      {isSorted === "asc"
+                        ? " (A-Z)"
+                        : isSorted === "desc"
+                          ? " (Z-A)"
+                          : ""}
                     </DropdownMenuCheckboxItem>
                   );
                 })}
@@ -362,7 +419,9 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => setViewMode("table")}
               className={`h-8 w-8 p-0 rounded-lg transition-all ${
-                viewMode === "table" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+                viewMode === "table"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <TableIcon className="h-4 w-4" />
@@ -372,7 +431,9 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => setViewMode("card")}
               className={`h-8 w-8 p-0 rounded-lg transition-all ${
-                viewMode === "card" ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+                viewMode === "card"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -386,13 +447,15 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination Footer */}
-      <div className={`flex items-center justify-between gap-4 pt-4 border-t border-border/50 ${viewMode === 'card' ? 'flex-col sm:flex-row' : ''}`}>
+      <div
+        className={`flex items-center justify-between gap-4 pt-4 border-t border-border/50 ${viewMode === "card" ? "flex-col sm:flex-row" : ""}`}
+      >
         <div className="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-start">
           <div className="text-sm text-muted-foreground font-medium hidden sm:block">
             {table.getFilteredSelectedRowModel().rows.length} dari{" "}
             {table.getFilteredRowModel().rows.length} baris terpilih.
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <p className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               Baris
@@ -400,7 +463,10 @@ export function DataTable<TData, TValue>({
             <PopoverSelect
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => table.setPageSize(Number(value))}
-              options={[10, 20, 50, 100].map(pageSize => ({ value: `${pageSize}`, label: `${pageSize}` }))}
+              options={[10, 20, 50, 100].map((pageSize) => ({
+                value: `${pageSize}`,
+                label: `${pageSize}`,
+              }))}
               placeholder={`${table.getState().pagination.pageSize}`}
               className="h-8 w-[70px] bg-transparent border-border shadow-sm text-xs"
             />
@@ -420,29 +486,39 @@ export function DataTable<TData, TValue>({
           </Button>
 
           <div className="flex items-center space-x-1">
-            {table.getPageCount() > 0 && getPageNumbers().map((page, index) => {
-              if (page === "...") {
+            {table.getPageCount() > 0 &&
+              getPageNumbers().map((page, index) => {
+                if (page === "...") {
+                  return (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-1 text-muted-foreground"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                const pageIndex = page as number;
                 return (
-                  <span key={`ellipsis-${index}`} className="px-1 text-muted-foreground">
-                    ...
-                  </span>
+                  <Button
+                    key={pageIndex}
+                    variant={
+                      table.getState().pagination.pageIndex === pageIndex
+                        ? "default"
+                        : "outline"
+                    }
+                    size="sm"
+                    onClick={() => table.setPageIndex(pageIndex)}
+                    className={`rounded-xl h-8 w-8 p-0 font-medium ${
+                      table.getState().pagination.pageIndex === pageIndex
+                        ? ""
+                        : "border-border"
+                    }`}
+                  >
+                    {pageIndex + 1}
+                  </Button>
                 );
-              }
-              const pageIndex = page as number;
-              return (
-                <Button
-                  key={pageIndex}
-                  variant={table.getState().pagination.pageIndex === pageIndex ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => table.setPageIndex(pageIndex)}
-                  className={`rounded-xl h-8 w-8 p-0 font-medium ${
-                    table.getState().pagination.pageIndex === pageIndex ? "" : "border-border"
-                  }`}
-                >
-                  {pageIndex + 1}
-                </Button>
-              )
-            })}
+              })}
           </div>
 
           <Button

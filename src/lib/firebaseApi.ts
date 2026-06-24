@@ -530,6 +530,131 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
       }
     }
 
+    // ===== GALLERY CATEGORIES =====
+    const mapGalCat = (r: any) => ({
+      id: r.id,
+      name: r.name || "",
+      tag: r.tag || "",
+      description: r.description || "",
+      thumbnailItemId: r.thumbnail_item_id ?? null,
+      order: r.order ?? 0,
+      createdAt: r.created_at ?? undefined,
+    });
+    const mapGalCatInput = (c: any) => {
+      const out: any = {};
+      if (c.name !== undefined) out.name = c.name;
+      if (c.tag !== undefined) out.tag = c.tag;
+      if (c.description !== undefined) out.description = c.description;
+      if (c.thumbnailItemId !== undefined)
+        out.thumbnail_item_id = c.thumbnailItemId || null;
+      if (c.order !== undefined) out.order = c.order;
+      return out;
+    };
+    if (path === "/api/galleryCategories" && method === "GET") {
+      const rows = await connSelect(conn, "gallery_categories").catch(() => []);
+      return ok((rows || []).map(mapGalCat));
+    }
+    if (path === "/api/galleryCategories" && method === "POST") {
+      const input = {
+        ...mapGalCatInput(body || {}),
+        created_at: new Date().toISOString(),
+      };
+      const rows = await connInsertReturning(conn, "gallery_categories", [input]);
+      return ok(mapGalCat(rows[0] || input));
+    }
+    const galCatMatch = path.match(/^\/api\/galleryCategories\/([^/]+)$/);
+    if (galCatMatch) {
+      const id = galCatMatch[1];
+      if (method === "PUT") {
+        const input = mapGalCatInput(body || {});
+        const rows = await connUpdate(conn, "gallery_categories", `id=eq.${id}`, input);
+        return ok(mapGalCat(rows[0] || { id, ...input }));
+      }
+      if (method === "DELETE") {
+        // Cascade-delete items in this category too.
+        try {
+          const items = await connSelectQuery(
+            conn,
+            "gallery_items",
+            `select=id&category_id=eq.${id}`,
+          ).catch(() => []);
+          await runWithConcurrency(items || [], (it: any) =>
+            connDeleteById(conn, "gallery_items", it.id),
+          );
+        } catch (e) {
+          console.warn("cascade delete gallery_items failed", e);
+        }
+        await connDeleteById(conn, "gallery_categories", id);
+        return ok();
+      }
+    }
+    if (path === "/api/galleryCategories/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      await runWithConcurrency(items, (it) =>
+        connUpdate(conn, "gallery_categories", `id=eq.${it.id}`, { order: it.order }),
+      );
+      return ok();
+    }
+
+    // ===== GALLERY ITEMS =====
+    const mapGalItem = (r: any) => ({
+      id: r.id,
+      categoryId: r.category_id || "",
+      title: r.title || "",
+      description: r.description || "",
+      sourceType: r.source_type === "upload" ? "upload" : "drive",
+      imageUrl: r.image_url || "",
+      imagePath: r.image_path || "",
+      order: r.order ?? 0,
+      createdAt: r.created_at ?? undefined,
+    });
+    const mapGalItemInput = (g: any) => {
+      const out: any = {};
+      if (g.categoryId !== undefined) out.category_id = g.categoryId;
+      if (g.title !== undefined) out.title = g.title;
+      if (g.description !== undefined) out.description = g.description;
+      if (g.sourceType !== undefined) out.source_type = g.sourceType;
+      if (g.imageUrl !== undefined) out.image_url = g.imageUrl;
+      if (g.imagePath !== undefined) out.image_path = g.imagePath;
+      if (g.order !== undefined) out.order = g.order;
+      return out;
+    };
+    if (path === "/api/galleryItems" && method === "GET") {
+      const rows = await connSelect(conn, "gallery_items").catch(() => []);
+      return ok((rows || []).map(mapGalItem));
+    }
+    if (path === "/api/galleryItems" && method === "POST") {
+      const input = {
+        ...mapGalItemInput(body || {}),
+        created_at: new Date().toISOString(),
+      };
+      const rows = await connInsertReturning(conn, "gallery_items", [input]);
+      return ok(mapGalItem(rows[0] || input));
+    }
+    const galItemMatch = path.match(/^\/api\/galleryItems\/([^/]+)$/);
+    if (galItemMatch) {
+      const id = galItemMatch[1];
+      if (method === "PUT") {
+        const input = mapGalItemInput(body || {});
+        const rows = await connUpdate(conn, "gallery_items", `id=eq.${id}`, input);
+        return ok(mapGalItem(rows[0] || { id, ...input }));
+      }
+      if (method === "DELETE") {
+        await connDeleteById(conn, "gallery_items", id);
+        return ok();
+      }
+    }
+    if (path === "/api/galleryItems/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      const categoryId = body?.categoryId || null;
+      await runWithConcurrency(items, (it) => {
+        const patch: any = { order: it.order };
+        if (categoryId) patch.category_id = categoryId;
+        return connUpdate(conn, "gallery_items", `id=eq.${it.id}`, patch);
+      });
+      return ok();
+    }
+
     // ===== REORDER =====
     if (path === "/api/groups/reorder" && method === "POST") {
       const items: { id: string; order: number }[] = body?.items || [];
@@ -804,7 +929,9 @@ export async function firebaseApiFetch(
       path === '/api/admin_users' ||
       path === '/api/posts' ||
       path === '/api/logs' ||
-      path === '/api/events');
+      path === '/api/events' ||
+      path === '/api/galleryCategories' ||
+      path === '/api/galleryItems');
   const cacheScope = isCacheableRead ? `read::${url}` : null;
 
   const finalize = async (res: Response) => {

@@ -179,7 +179,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col pb-20 md:pb-0">
       {/* Navbar Global – Leaderboard | Logo (center) | Berita */}
-      <nav className="bg-background border-b border-border sticky top-0 z-40 shadow-soft hidden md:block">
+      <nav className="bg-background border-b border-border sticky top-0 z-40 shadow-soft hidden md:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative flex justify-between items-center h-20">
             {/* Left: Leaderboard */}
@@ -231,7 +231,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Floating Settings FAB – bottom-right, below ScrollToTop */}
-      <FloatingSettingsFab
+      {/* <FloatingSettingsFab
         themeMode={themeMode}
         toggleTheme={toggleTheme}
         activePresetId={
@@ -242,17 +242,17 @@ function AppContent({ children }: { children: React.ReactNode }) {
         cyclePreset={cyclePreset}
         activePresetName={activePresetName}
         isAdmin={isAdmin}
-      />
+      /> */}
 
       {/* Scroll to top – bottom-right, above FAB (with breathing room) */}
-      <div className="fixed bottom-40 md:bottom-18 right-4 z-50">
+      <div className="fixed bottom-20 md:bottom-5 right-4 z-50">
         <ScrollToTop />
       </div>
 
-      <PwaDownloadPrompt />
+      {/* <PwaDownloadPrompt /> */}
 
       {/* Mobile Bottom Nav – Leaderboard | Logo (absolute center) | Berita */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border pt-5 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden z-50">
+      <nav className="hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border pt-5 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden z-50">
         {/* Logo – absolute center of screen */}
         <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
           {appSettings?.logoUrl ? (

@@ -1,16 +1,27 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Search, SlidersHorizontal, X, ArrowDownAZ, Flame, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import {
+  Search,
+  SlidersHorizontal,
+  X,
+  ArrowDownAZ,
+  Flame,
+  Clock,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export type SortKey = 'newest' | 'oldest' | 'popular' | 'az';
+export type SortKey = "newest" | "oldest" | "popular" | "az";
 
-const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ComponentType<any> }[] = [
-  { key: 'newest', label: 'Terbaru', icon: Clock },
-  { key: 'oldest', label: 'Terlama', icon: Clock },
-  { key: 'popular', label: 'Terpopuler', icon: Flame },
-  { key: 'az', label: 'A → Z', icon: ArrowDownAZ },
+const SORT_OPTIONS: {
+  key: SortKey;
+  label: string;
+  icon: React.ComponentType<any>;
+}[] = [
+  { key: "newest", label: "Terbaru", icon: Clock },
+  { key: "oldest", label: "Terlama", icon: Clock },
+  { key: "popular", label: "Terpopuler", icon: Flame },
+  { key: "az", label: "A → Z", icon: ArrowDownAZ },
 ];
 
 export function SmartSearchBar({
@@ -18,8 +29,7 @@ export function SmartSearchBar({
   onChange,
   sort,
   onSortChange,
-  placeholder = 'Cari berita, topik, atau penulis…',
-  resultCount,
+  placeholder = "Cari berita, topik, atau penulis…",
   className,
 }: {
   value: string;
@@ -27,22 +37,23 @@ export function SmartSearchBar({
   sort: SortKey;
   onSortChange: (s: SortKey) => void;
   placeholder?: string;
-  resultCount?: number;
   className?: string;
+  resultCount?: number;
 }) {
   const [showSort, setShowSort] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowSort(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node))
+        setShowSort(false);
     };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn("w-full", className)}>
       <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -55,7 +66,7 @@ export function SmartSearchBar({
           {value && (
             <button
               type="button"
-              onClick={() => onChange('')}
+              onClick={() => onChange("")}
               aria-label="Clear search"
               className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
@@ -70,12 +81,14 @@ export function SmartSearchBar({
             onClick={() => setShowSort((s) => !s)}
             aria-label="Sort"
             className={cn(
-              'h-12 px-4 inline-flex items-center gap-2 rounded-full border border-border bg-background text-xs font-bold uppercase tracking-widest hover:border-foreground transition-colors',
-              showSort && 'border-foreground'
+              "h-12 px-4 inline-flex items-center gap-2 rounded-full border border-border bg-background text-xs font-bold uppercase tracking-widest hover:border-foreground transition-colors",
+              showSort && "border-foreground",
             )}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            <span className="hidden sm:inline">{SORT_OPTIONS.find((s) => s.key === sort)?.label}</span>
+            <span className="hidden sm:inline">
+              {SORT_OPTIONS.find((s) => s.key === sort)?.label}
+            </span>
           </button>
           {showSort && (
             <div className="absolute right-0 top-full mt-2 w-44 bg-background border border-border rounded-xl shadow-soft z-30 overflow-hidden">
@@ -91,8 +104,8 @@ export function SmartSearchBar({
                       setShowSort(false);
                     }}
                     className={cn(
-                      'w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-muted transition-colors',
-                      active && 'bg-muted font-bold'
+                      "w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-muted transition-colors",
+                      active && "bg-muted font-bold",
                     )}
                   >
                     <Icon className="w-4 h-4 text-muted-foreground" /> {s.label}
@@ -103,12 +116,6 @@ export function SmartSearchBar({
           )}
         </div>
       </div>
-
-      {typeof resultCount === 'number' && (
-        <p className="text-[11px] uppercase tracking-widest text-muted-foreground mt-3 font-semibold">
-          {resultCount} hasil ditemukan
-        </p>
-      )}
     </div>
   );
 }

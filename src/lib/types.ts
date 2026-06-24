@@ -1,4 +1,4 @@
-export type AdminRole = 'super_admin' | 'admin';
+export type AdminRole = "super_admin" | "admin";
 
 export interface AdminUser {
   id: string;
@@ -20,6 +20,8 @@ export interface Category {
   groupId?: string;
   /** Manual ascending sort index within its Group. */
   order?: number;
+  /** Detail kurikulum / deskripsi level (ditampilkan di ProgramTab). */
+  description?: string;
 }
 
 export interface MasterGoal {
@@ -43,6 +45,12 @@ export interface Group {
   name: string;
   order: number;
   isSystem?: boolean;
+  /** Emoji ikon program (mis. "🏫"). */
+  icon?: string;
+  /** Ringkasan singkat program (1-2 kalimat). */
+  description?: string;
+  /** Deskripsi lengkap program (paragraf). */
+  longDescription?: string;
 }
 
 export interface AssignedGoal {
@@ -76,6 +84,39 @@ export interface StudentAchievement {
   assignedAt: string;
 }
 
+/**
+ * Gallery category (album) for the public "Galeri" tab.
+ * Has many GalleryItem rows. `thumbnailItemId` references an existing item
+ * whose image is used as the album cover.
+ */
+export interface GalleryCategory {
+  id: string;
+  name: string;
+  /** Short tag/label shown on the album card (e.g. "Kajian"). */
+  tag?: string;
+  description?: string;
+  /** Id of a GalleryItem (in this category) used as the album cover. */
+  thumbnailItemId?: string | null;
+  order: number;
+  createdAt?: string;
+}
+
+/** A single image inside a GalleryCategory. */
+export interface GalleryItem {
+  id: string;
+  categoryId: string;
+  title: string;
+  description?: string;
+  /** "drive" = Google Drive shareable link; "upload" = Firebase Storage blob. */
+  sourceType: "drive" | "upload";
+  /** Final image URL (raw drive URL or uploaded https URL). */
+  imageUrl: string;
+  /** Storage object path for cleanup when sourceType="upload". */
+  imagePath?: string;
+  order: number;
+  createdAt?: string;
+}
+
 export interface Post {
   id: string;
   title: string;
@@ -84,7 +125,7 @@ export interface Post {
   excerpt: string;
   featured_image: string;
   author_id: string;
-  status: 'draft' | 'published';
+  status: "draft" | "published";
   category: string;
   tags: string[];
   meta_title?: string;

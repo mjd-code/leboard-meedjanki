@@ -679,15 +679,15 @@ function PhotoSourcePicker({
       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
         Sumber Foto
       </label>
-      <div className="inline-flex rounded-xl bg-secondary p-1 mb-3 w-full">
+      <div className="inline-flex rounded-xl bg-secondary p-2 mb-3 w-full">
         <button
           type="button"
           onClick={() => setMode("upload")}
           className={cn(
-            "flex-1 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+            "flex-1 px-3 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
             mode === "upload"
               ? "bg-card shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           Upload File
@@ -696,10 +696,10 @@ function PhotoSourcePicker({
           type="button"
           onClick={() => setMode("gdrive")}
           className={cn(
-            "flex-1 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+            "flex-1 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
             mode === "gdrive"
               ? "bg-card shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           Google Drive
@@ -731,7 +731,7 @@ function PhotoSourcePicker({
             type="text"
             className={cn(
               "w-full bg-secondary border rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/50",
-              invalid ? "border-destructive/60" : "border-transparent"
+              invalid ? "border-destructive/60" : "border-transparent",
             )}
             placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
             value={draft}
@@ -761,7 +761,6 @@ function PhotoSourcePicker({
     </div>
   );
 }
-
 
 // Student Edit Modal (Shared with initial but updated styles)
 function StudentAdminModal({
@@ -849,7 +848,9 @@ function StudentAdminModal({
   // All goals across all groups/categories — for the global bulk-assign action.
   const allGoalIds: string[] = useMemo(
     () =>
-      tree.flatMap((g) => g.categories.flatMap((c) => c.goals.map((x) => x.id))),
+      tree.flatMap((g) =>
+        g.categories.flatMap((c) => c.goals.map((x) => x.id)),
+      ),
     [tree],
   );
 
@@ -1085,6 +1086,43 @@ function StudentAdminModal({
     setBusy(false);
   };
 
+  // 1. Buat dua ref untuk masing-masing container horizontal scroll
+  const groupTabsRef = useRef<HTMLDivElement>(null);
+  const categoryTabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const groupContainer = groupTabsRef.current;
+    const categoryContainer = categoryTabsRef.current;
+
+    // 2. Fungsi wheel handler yang berlaku universal
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        // TypeScript type assertion karena kita tahu e.currentTarget adalah elemen div
+        const container = e.currentTarget as HTMLDivElement;
+        container.scrollLeft += e.deltaY;
+      }
+    };
+
+    // 3. Pasang event listener dengan passive: false
+    if (groupContainer) {
+      groupContainer.addEventListener("wheel", handleWheel, { passive: false });
+    }
+    if (categoryContainer) {
+      categoryContainer.addEventListener("wheel", handleWheel, {
+        passive: false,
+      });
+    }
+
+    // 4. Bersihkan event listener saat komponen unmount
+    return () => {
+      if (groupContainer)
+        groupContainer.removeEventListener("wheel", handleWheel);
+      if (categoryContainer)
+        categoryContainer.removeEventListener("wheel", handleWheel);
+    };
+  }, [tree, activeCategories]); // Re-bind jika data tree/categories berubah secara dinamis
+
   return (
     <div className="fixed inset-0 bg-base-900/60 backdrop-blur-md z-[60] flex justify-center items-center p-4">
       <motion.div
@@ -1191,7 +1229,6 @@ function StudentAdminModal({
                   setFormData((p) => ({ ...p, photo: url, photoPath: "" }))
                 }
               />
-
 
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">
@@ -1301,173 +1338,122 @@ function StudentAdminModal({
 
             {/* Group tabs */}
             {tree.length > 0 && (
-              <div
-                className="mb-3 -mx-1 px-1 overflow-x-auto scrollbar-hide"
-                onWheel={(e) => {
-                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                    e.currentTarget.scrollLeft += e.deltaY;
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <div className="flex gap-2 min-w-max pb-1">
-                  {tree.map((node) => {
-                    const active = node.group.id === activeGroupNode?.group.id;
-                    const totalGoals = node.categories.flatMap(
-                      (c) => c.goals,
-                    ).length;
-                    return (
-                      <button
-                        key={node.group.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedGroupId(node.group.id);
-                          setSelectedCategoryIds([]);
-                        }}
-                        className={cn(
-                          "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
-                          active
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background border-border text-foreground/70 hover:border-foreground",
-                        )}
-                      >
-                        <Layers className="w-3.5 h-3.5" />
-                        <span>{node.group.name}</span>
-                        <span
+              <div className="mb-3 w-full">
+                <div
+                  ref={groupTabsRef}
+                  className="scrollbar-hide flex flex-nowrap items-center overflow-x-auto select-none bg-card/95 backdrop-blur-sm rounded-xl border border-border p-2 shadow-soft w-ful"
+                  style={{
+                    scrollbarWidth: "none",
+                    WebkitOverflowScrolling: "touch",
+                  }}
+                >
+                  {/* PERBAIKAN: Ganti 'flex min-w-max' menjadi 'inline-flex' dan beri padding kanan */}
+                  <div className="inline-flex items-center gap-2 pr-4">
+                    {tree.map((node) => {
+                      const active =
+                        node.group.id === activeGroupNode?.group.id;
+                      const totalGoals = node.categories.flatMap(
+                        (c) => c.goals,
+                      ).length;
+                      return (
+                        <button
+                          key={node.group.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGroupId(node.group.id);
+                            setSelectedCategoryIds([]);
+                          }}
                           className={cn(
-                            "text-[10px] font-black px-1.5 rounded-full",
+                            "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
                             active
-                              ? "bg-background/20"
-                              : "bg-secondary text-muted-foreground",
+                              ? "bg-foreground text-background border-foreground"
+                              : "bg-background border-border text-foreground/70 hover:border-foreground",
                           )}
                         >
-                          {totalGoals}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          <Layers className="w-3.5 h-3.5" />
+                          <span>{node.group.name}</span>
+                          <span
+                            className={cn(
+                              "text-[10px] font-black px-1.5 rounded-full",
+                              active
+                                ? "bg-background/20"
+                                : "bg-secondary text-muted-foreground",
+                            )}
+                          >
+                            {totalGoals}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Category tabs (multi-select) */}
             {activeCategories.length > 0 && (
-              <div
-                className="mb-4 -mx-1 px-1 overflow-x-auto scrollbar-hide"
-                onWheel={(e) => {
-                  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                    e.currentTarget.scrollLeft += e.deltaY;
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <div className="flex gap-2 min-w-max pb-1 items-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategoryIds([])}
-                    className={cn(
-                      "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
-                      selectedCategoryIds.length === 0
-                        ? "bg-foreground text-background border-foreground"
-                        : "bg-background border-border text-foreground/70 hover:border-foreground",
-                    )}
-                  >
-                    Semua
-                  </button>
-                  {activeCategories.map((catNode) => {
-                    const cid = catNode.category.id;
-                    const active = selectedCategoryIds.includes(cid);
-                    const assignedCount = catNode.goals.filter((g) =>
-                      isAssigned(g.id),
-                    ).length;
-                    return (
-                      <button
-                        key={cid}
-                        type="button"
-                        onClick={() =>
-                          setSelectedCategoryIds((prev) =>
-                            prev.includes(cid)
-                              ? prev.filter((x) => x !== cid)
-                              : [...prev, cid],
-                          )
-                        }
-                        className={cn(
-                          "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
-                          active
-                            ? "bg-foreground text-background border-foreground"
-                            : "bg-background border-border text-foreground/70 hover:border-foreground",
-                        )}
-                      >
-                        <span>{catNode.category.name}</span>
-                        <span
+              <div className="mb-4 w-full">
+                <div
+                  ref={categoryTabsRef}
+                  className="scrollbar-hide flex flex-nowrap items-center overflow-x-auto select-none bg-card/95 backdrop-blur-sm rounded-xl border border-border p-2 shadow-soft w-ful"
+                  style={{
+                    scrollbarWidth: "none",
+                    WebkitOverflowScrolling: "touch",
+                  }}
+                >
+                  {/* PERBAIKAN: Ganti 'flex min-w-max' menjadi 'inline-flex' dan beri padding kanan */}
+                  <div className="inline-flex items-center gap-2 pr-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategoryIds([])}
+                      className={cn(
+                        "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
+                        selectedCategoryIds.length === 0
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background border-border text-foreground/70 hover:border-foreground",
+                      )}
+                    >
+                      Semua
+                    </button>
+                    {activeCategories.map((catNode) => {
+                      const cid = catNode.category.id;
+                      const active = selectedCategoryIds.includes(cid);
+                      const assignedCount = catNode.goals.filter((g) =>
+                        isAssigned(g.id),
+                      ).length;
+                      return (
+                        <button
+                          key={cid}
+                          type="button"
+                          onClick={() =>
+                            setSelectedCategoryIds((prev) =>
+                              prev.includes(cid)
+                                ? prev.filter((x) => x !== cid)
+                                : [...prev, cid],
+                            )
+                          }
                           className={cn(
-                            "text-[10px] font-black px-1.5 rounded-full",
+                            "shrink-0 inline-flex items-center gap-2 px-4 h-9 rounded-full border text-xs font-bold whitespace-nowrap transition-all",
                             active
-                              ? "bg-background/20"
-                              : "bg-secondary text-muted-foreground",
+                              ? "bg-foreground text-background border-foreground"
+                              : "bg-background border-border text-foreground/70 hover:border-foreground",
                           )}
                         >
-                          {assignedCount}/{catNode.goals.length}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Bulk actions for the current track scope */}
-            {visibleGoalIds.length > 0 && (
-              <div className="mb-4 p-3 rounded-2xl bg-secondary/30 border border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Pilih Semua di{" "}
-                  <span className="text-primary">{scopeLabel}</span>
-                  <span className="ml-2 normal-case tracking-normal font-bold text-muted-foreground">
-                    · {visibleAssignedCount}/{visibleGoalIds.length} assigned ·{" "}
-                    {visibleCompletedCount} completed
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => requestBulkAssigned(!allVisibleAssigned)}
-                    className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-xl transition-all ${
-                      allVisibleAssigned
-                        ? "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    }`}
-                    title={
-                      allVisibleAssigned
-                        ? "Hapus semua yang terlihat"
-                        : "Tugaskan semua yang terlihat"
-                    }
-                  >
-                    {allVisibleAssigned ? (
-                      <Square className="w-4 h-4" />
-                    ) : (
-                      <CheckSquare className="w-4 h-4" />
-                    )}
-                    {allVisibleAssigned ? "Hapus Semua" : "Tugaskan Semua"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => requestBulkCompleted(!allVisibleCompleted)}
-                    className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-xl transition-all ${
-                      allVisibleCompleted
-                        ? "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                        : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:brightness-95"
-                    }`}
-                    title={
-                      allVisibleCompleted
-                        ? "Batalkan Selesai"
-                        : "Tandai Selesai"
-                    }
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {allVisibleCompleted
-                      ? "Batalkan Selesai Semua"
-                      : "Tandai Semua Selesai"}
-                  </button>
+                          <span>{catNode.category.name}</span>
+                          <span
+                            className={cn(
+                              "text-[10px] font-black px-1.5 rounded-full",
+                              active
+                                ? "bg-background/20"
+                                : "bg-secondary text-muted-foreground",
+                            )}
+                          >
+                            {assignedCount}/{catNode.goals.length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

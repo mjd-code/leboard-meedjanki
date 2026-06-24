@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * HScroller — horizontal snap scroller with edge fade + arrow controls.
@@ -35,35 +35,38 @@ export function HScroller({
     update();
     const el = ref.current;
     if (!el) return;
-    el.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
-      el.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
     };
   }, [update]);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = ref.current;
     if (!el) return;
-    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.85), behavior: 'smooth' });
+    el.scrollBy({
+      left: dir * Math.round(el.clientWidth * 0.85),
+      behavior: "smooth",
+    });
   };
 
   return (
-    <div className={cn('relative group/hscroll', className)}>
+    <div className={cn("relative group/hscroll", className)}>
       {/* Edge fades — desktop/tablet only. Disabled on mobile to avoid broken overlays. */}
       <div
         aria-hidden
         className={cn(
-          'pointer-events-none absolute inset-y-0 left-0 w-12 z-10 transition-opacity duration-300 hidden sm:block bg-gradient-to-r from-background via-background/80 to-transparent',
-          canLeft ? 'opacity-100' : 'opacity-0'
+          "pointer-events-none absolute inset-y-0 left-0 w-12 z-10 transition-opacity duration-300 hidden sm:block ",
+          canLeft ? "opacity-100" : "opacity-0",
         )}
       />
       <div
         aria-hidden
         className={cn(
-          'pointer-events-none absolute inset-y-0 right-0 w-12 z-10 transition-opacity duration-300 hidden sm:block bg-gradient-to-l from-background via-background/80 to-transparent',
-          canRight ? 'opacity-100' : 'opacity-0'
+          "pointer-events-none absolute inset-y-0 right-0 w-12 z-10 transition-opacity duration-300 hidden sm:block",
+          canRight ? "opacity-100" : "opacity-0",
         )}
       />
 
@@ -74,8 +77,8 @@ export function HScroller({
             aria-label="Scroll left"
             onClick={() => scrollBy(-1)}
             className={cn(
-              'hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-background/95 backdrop-blur border border-border shadow-soft text-foreground hover:bg-foreground hover:text-background transition-all',
-              canLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              "hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-background/95 backdrop-blur border border-border shadow-soft text-foreground hover:bg-foreground hover:text-background transition-all",
+              canLeft ? "opacity-100" : "opacity-0 pointer-events-none",
             )}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -85,8 +88,8 @@ export function HScroller({
             aria-label="Scroll right"
             onClick={() => scrollBy(1)}
             className={cn(
-              'hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-background/95 backdrop-blur border border-border shadow-soft text-foreground hover:bg-foreground hover:text-background transition-all',
-              canRight ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              "hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 w-9 h-9 items-center justify-center rounded-full bg-background/95 backdrop-blur border border-border shadow-soft text-foreground hover:bg-foreground hover:text-background transition-all",
+              canRight ? "opacity-100" : "opacity-0 pointer-events-none",
             )}
           >
             <ChevronRight className="w-4 h-4" />
@@ -116,8 +119,8 @@ export function HScrollItem({
   return (
     <div
       className={cn(
-        'snap-start shrink-0 w-[78%] sm:w-[46%] md:w-[34%] lg:w-[28%]',
-        className
+        "snap-start shrink-0 w-[78%] sm:w-[46%] md:w-[34%] lg:w-[28%]",
+        className,
       )}
     >
       {children}

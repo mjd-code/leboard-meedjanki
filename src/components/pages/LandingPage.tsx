@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/api";
 import type { Post, Student } from "../../lib/types";
@@ -10,15 +10,16 @@ import {
   Trophy,
   BookOpen,
   Activity,
-  Star,
   Users,
   Eye,
-  Sparkles,
-  GraduationCap,
   Newspaper,
   Target,
+  ChevronDown,
+  Compass,
+  Image as ImageIcon,
+  HelpCircle,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   AreaChart,
   Area,
@@ -28,11 +29,16 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { HScroller, HScrollItem } from "@/components/ui/HScroller";
-import { CategoryChips } from "@/components/ui/CategoryChips";
-import { ArticleCard } from "@/components/ui/ArticleCard";
+
+// Impor Carousel Shadcn UI & Autoplay
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+
 import { PopoverSelect } from "@/components/ui/PopoverSelect";
-import { SmartSearchBar, type SortKey } from "@/components/ui/SmartSearchBar";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
 function todayLabel() {
@@ -45,6 +51,7 @@ function todayLabel() {
 }
 
 export function LandingPage() {
+  // --- API Fetching ---
   const { data: allPosts = [] } = useQuery<Post[]>({
     queryKey: ["public-posts"],
     queryFn: async () => {
@@ -73,67 +80,28 @@ export function LandingPage() {
     },
   });
 
-  // Categories
-  const categoryCounts = React.useMemo(() => {
-    const map = new Map<string, number>();
-    allPosts.forEach((p) => {
-      const cat = (p.category || "Umum").trim();
-      map.set(cat, (map.get(cat) ?? 0) + 1);
-    });
-    return Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [allPosts]);
+  const [statsRange, setStatsRange] = useState("today");
+  const { data: analytics } = useQuery({
+    queryKey: ["public-analytics", statsRange],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/stats?range=${statsRange}`);
+      if (!res.ok) throw new Error("Fetch failed");
+      return res.json();
+    },
+  });
 
-  // Filter / sort / search state
-  const [search, setSearch] = React.useState("");
-  const [sort, setSort] = React.useState<SortKey>("newest");
-  const [activeCat, setActiveCat] = React.useState<string | null>(null);
-
-  const filteredPosts = React.useMemo(() => {
-    let list = [...allPosts];
-    if (activeCat)
-      list = list.filter((p) => (p.category || "Umum") === activeCat);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          (p.excerpt || "").toLowerCase().includes(q) ||
-          (p.category || "").toLowerCase().includes(q),
-      );
-    }
-    list.sort((a, b) => {
-      switch (sort) {
-        case "oldest":
-          return (a.published_at || "").localeCompare(b.published_at || "");
-        case "popular":
-          return ((b as any).views || 0) - ((a as any).views || 0);
-        case "az":
-          return a.title.localeCompare(b.title);
-        case "newest":
-        default:
-          return (b.published_at || "").localeCompare(a.published_at || "");
-      }
-    });
-    return list;
-  }, [allPosts, activeCat, search, sort]);
-
-  const featuredPosts = filteredPosts.slice(0, 8);
-
-  const sortedStudents = React.useMemo(() => {
+  // --- Data Munging ---
+  const sortedStudents = useMemo(() => {
     return [...students]
       .map((student) => {
         if (!student.assignedGoals || !Array.isArray(student.assignedGoals)) {
           return {
             ...student,
-            calculatedPoints: student.totalPoints || 0,
+            totalPoints: student.totalPoints || 0,
             lastCompletion: 0,
           };
         }
-
         const completedGoals = student.assignedGoals.filter((g) => g.completed);
-
         const calculatedPoints = completedGoals.reduce((total, assigned) => {
           const goalData = masterGoals.find(
             (mg) => String(mg.id) === String(assigned.goalId),
@@ -156,34 +124,29 @@ export function LandingPage() {
           return isNaN(compTime) ? max : compTime > max ? compTime : max;
         }, 0);
 
-        return {
-          ...student,
-          totalPoints: calculatedPoints,
-          lastCompletion,
-        };
+        return { ...student, totalPoints: calculatedPoints, lastCompletion };
       })
       .sort((a, b) => {
-        const ptsA = a.totalPoints || 0;
-        const ptsB = b.totalPoints || 0;
-        if (ptsB !== ptsA) return ptsB - ptsA;
+        if (b.totalPoints !== a.totalPoints)
+          return (b.totalPoints || 0) - (a.totalPoints || 0);
         return (b.lastCompletion || 0) - (a.lastCompletion || 0);
       });
   }, [students, masterGoals]);
 
   const topStudents = sortedStudents.slice(0, 8);
 
-  // Stats Hook
-  const [statsRange, setStatsRange] = React.useState("today");
-  const { data: analytics } = useQuery({
-    queryKey: ["public-analytics", statsRange],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/stats?range=${statsRange}`);
-      if (!res.ok) throw new Error("Fetch failed");
-      return res.json();
-    },
-  });
+  const popularPosts = useMemo(() => {
+    return [...allPosts]
+      .sort((a, b) => {
+        const viewsA =
+          ((a as any).organic_views || 0) + ((a as any).offset_views || 0);
+        const viewsB =
+          ((b as any).organic_views || 0) + ((b as any).offset_views || 0);
+        return viewsB - viewsA;
+      })
+      .slice(0, 8);
+  }, [allPosts]);
 
-  // Stats
   const totalViews = allPosts.reduce(
     (s, p) =>
       s +
@@ -195,6 +158,7 @@ export function LandingPage() {
     (s, st) => s + (st.totalPoints || 0),
     0,
   );
+
   const stats = [
     {
       label: "Pengunjung Web",
@@ -206,36 +170,23 @@ export function LandingPage() {
       label: "Artikel Dibaca",
       value: analytics?.articleReads || totalViews || 0,
       icon: Eye,
-      hint: "Global Article Readers",
+      hint: "Pembaca Global",
     },
     {
       label: "Santri",
       value: students.length,
       icon: Users,
-      hint: "Santri terdaftar",
-    },
-    {
-      label: "Artikel",
-      value: allPosts.length,
-      icon: Newspaper,
-      hint: "Telah diterbitkan",
+      hint: "Total Terdaftar",
     },
     {
       label: "Total Poin",
       value: totalPoints,
       icon: Target,
-      hint: "Capaian santri",
-    },
-    {
-      label: "Kategori",
-      value: categoryCounts.length,
-      icon: BookOpen,
-      hint: "Rubrik aktif",
+      hint: "Capaian Akumulatif",
     },
   ];
 
-  // Real 7-day activity trend derived from students' completed goals
-  const trendData = React.useMemo(() => {
+  const trendData = useMemo(() => {
     const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
     const buckets: { key: string; name: string; aktif: number }[] = [];
     const today = new Date();
@@ -258,391 +209,556 @@ export function LandingPage() {
         if (i !== undefined) buckets[i].aktif += 1;
       });
     });
-    return buckets.map(({ name, aktif }) => ({ name, aktif }));
+    return buckets;
   }, [students]);
 
+  // --- Local States & Static Data ---
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  const programs = [
+    {
+      title: "Tahfidzul Qur'an",
+      desc: "Akselerasi hafalan mutqin 30 juz dengan bimbingan bersanad.",
+      icon: "📖",
+    },
+    {
+      title: "Kajian Kitab Kuning",
+      desc: "Pendalaman komprehensif literatur klasik/turats ushul fiqh, nahwu, dan akhlak.",
+      icon: "🕌",
+    },
+    {
+      title: "Digital Skill & Tech",
+      desc: "Pengembangan bakat modern melalui coding, UI/UX design, dan literasi media.",
+      icon: "💻",
+    },
+  ];
+
+  const galleryItems = [
+    { src: null, tag: "Kajian", title: "Khidmah Kitab Turats" },
+    { src: null, tag: "Santri", title: "Sema'an Al-Qur'an Akbar" },
+    { src: null, tag: "Kompleks", title: "Suasana Malam Manbaul Huda" },
+    { src: null, tag: "Sains", title: "Inovasi Coding Santri" },
+    { src: null, tag: "Kemandirian", title: "Agrobisnis & Lifeskill" },
+  ];
+
+  const faqs = [
+    {
+      q: "Bagaimana sistem pelacakan poin prestasi santri?",
+      a: "Setiap target pencapaian (tahfidz, kedisiplinan, kitab) diinput oleh pengasuh melalui sistem backend, poin otomatis terakumulasi real-time di leaderboard publik.",
+    },
+    {
+      q: "Apakah kurikulum teknologi mengganggu pembelajaran kitab?",
+      a: "Tidak. Sesi literasi digital dijadwalkan secara khusus pasca-kajian utama sebagai bekal santri menghadapi era modern.",
+    },
+    {
+      q: "Bagaimana cara mendaftar menjadi santri PPMH?",
+      a: "Pendaftaran dapat diakses secara online via portal web resmi atau langsung menuju kesekretariatan PPMH di Karangploso, Malang.",
+    },
+  ];
+
+  // --- Carousel Autoplay Refs (4 detik) ---
+  // Ditambahkan stopOnInteraction: false & stopOnMouseEnter: true agar auto-scroll hidup kembali setelah interaksi manual selesai
+  const pluginLeaderboard = useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true }),
+  );
+  const pluginNews = useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true }),
+  );
+  const pluginGallery = useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true }),
+  );
+
+  // --- Refs untuk Mouse Wheel Scrolling ---
+  const leaderboardRef = useRef<HTMLDivElement>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  const newsRef = useRef<HTMLDivElement>(null);
+
+  const createWheelHandler = (ref: React.RefObject<HTMLDivElement | null>) => {
+    return (e: WheelEvent) => {
+      const carouselContainer = ref.current;
+      if (!carouselContainer) return;
+
+      // Cari elemen internal viewport embla (biasanya div pertama di dalam komponen Carousel)
+      const emblaViewport =
+        carouselContainer.querySelector('[class*="overflow-hidden"]') ||
+        carouselContainer;
+
+      if (e.deltaY !== 0) {
+        e.preventDefault(); // Matikan scroll halaman vertikal
+        emblaViewport.scrollLeft += e.deltaY; // Geser horizontal
+      }
+    };
+  };
+
+  useEffect(() => {
+    const lbContainer = leaderboardRef.current;
+    const galContainer = galleryRef.current;
+    const newsContainer = newsRef.current;
+
+    const handleLbWheel = createWheelHandler(leaderboardRef);
+    const handleGalWheel = createWheelHandler(galleryRef);
+    const handleNewsWheel = createWheelHandler(newsRef);
+
+    if (lbContainer)
+      lbContainer.addEventListener("wheel", handleLbWheel, { passive: false });
+    if (galContainer)
+      galContainer.addEventListener("wheel", handleGalWheel, {
+        passive: false,
+      });
+    if (newsContainer)
+      newsContainer.addEventListener("wheel", handleNewsWheel, {
+        passive: false,
+      });
+
+    return () => {
+      if (lbContainer) lbContainer.removeEventListener("wheel", handleLbWheel);
+      if (galContainer)
+        galContainer.removeEventListener("wheel", handleGalWheel);
+      if (newsContainer)
+        newsContainer.removeEventListener("wheel", handleNewsWheel);
+    };
+  }, [topStudents, galleryItems, popularPosts]);
+
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Hero / Masthead — static grid on PC/tablet for visual emphasis */}
-      <section className="border-b-4 border-double border-foreground">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 pt-14 pb-12 md:pt-20 md:pb-16 text-center">
+    <div className="min-h-screen bg-background text-foreground pb-20 selection:bg-amber-500 selection:text-neutral-900 overflow-x-hidden">
+      {/* 1. Hero / Masthead */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-950 via-background to-background pt-12 pb-10 md:pt-20 md:pb-16">
+        <div className="max-w-6xl mx-auto px-5 text-center sm:px-6 lg:px-8">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground mb-4 inline-flex items-center gap-2">
-              <Activity className="w-3 h-3" /> {todayLabel()}
+            <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-amber-400 font-bold mb-4 inline-flex items-center gap-2 bg-emerald-900/50 px-3.5 py-1.5 rounded-full border border-emerald-800">
+              <Activity className="w-3 h-3 animate-pulse text-emerald-400" />{" "}
+              {todayLabel()}
             </p>
-            <h1 className="font-display text-5xl md:text-8xl lg:text-9xl font-black text-foreground tracking-tight leading-[0.9]">
+            <h1 className="font-display text-4xl sm:text-6xl md:text-8xl font-black tracking-tight leading-[1.1]">
               PPMH{" "}
-              <span className="italic font-normal text-primary">Insight</span>
+              <span className="italic font-serif font-normal text-amber-500">
+                Insight
+              </span>
             </h1>
-            <div className="mt-6 max-w-2xl mx-auto">
-              <p className="font-serif-body italic text-lg md:text-xl text-foreground/70 leading-relaxed">
-                Pusat data, pencapaian santri, dan berita terkini Pondok
-                Pesantren Manbaul Huda — Ngambon, Girimoyo, Karangploso, Malang.
+            <div className="mt-5 md:mt-6 max-w-xl mx-auto px-2">
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed font-medium">
+                Pusat data transparansi, performa capaian santri, dan jurnalisme
+                berkala Pondok Pesantren Manbaul Huda — Karangploso, Malang.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8 md:mt-10 max-w-xs mx-auto sm:max-w-none">
               <Link
                 href="/leaderboard"
-                className="px-7 py-3 bg-foreground text-background font-bold uppercase tracking-widest text-xs hover:bg-primary transition-colors w-full sm:w-auto inline-flex justify-center items-center"
+                className="flex items-center justify-center w-full px-6 py-3.5 text-xs font-bold tracking-widest text-neutral-950 uppercase transition-all bg-amber-500 hover:bg-amber-400 sm:w-auto rounded-xl shadow-lg shadow-amber-500/10"
               >
                 <Trophy className="w-4 h-4 mr-2" /> Papan Peringkat
               </Link>
               <Link
                 href="/blog"
-                className="px-7 py-3 border-2 border-foreground text-foreground font-bold uppercase tracking-widest text-xs hover:bg-foreground hover:text-background transition-colors w-full sm:w-auto inline-flex justify-center items-center"
+                className="flex items-center justify-center w-full px-6 py-3.5 text-xs font-bold tracking-widest text-amber-500 uppercase transition-all border-2 border-emerald-800 bg-emerald-950/20 hover:bg-emerald-950/50 sm:w-auto rounded-xl"
               >
-                <BookOpen className="w-4 h-4 mr-2" /> Baca Berita
+                <BookOpen className="w-4 h-4 mr-2" /> Eksplorasi Berita
               </Link>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Peringkat — horizontal rail */}
-      <section className="max-w-6xl mx-auto px-4 md:px-8 pt-14">
-        <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="max-w-6xl mx-auto px-1 sm:px-1 lg:px-8 space-y-8 md:space-y-12">
+        {/* 6. Galeri Pesantren Section */}
+        <section className="bg-gradient-to-br from-neutral-950 via-emerald-950/10 to-neutral-950 border border-emerald-900/30 rounded-[2rem] p-5 sm:p-6 lg:p-8 space-y-6 overflow-hidden">
           <div className="flex items-center gap-3">
-            <Trophy className="w-6 h-6 text-yellow-500" />
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-              Peringkat
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <ImageIcon className="w-5 h-5" />
+            </div>
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+              Galeri Pesantren
             </h2>
           </div>
-          <Link
-            href="/leaderboard"
-            className="text-primary text-xs font-bold uppercase tracking-widest hover:underline inline-flex items-center"
-          >
-            Semua <ArrowRight className="w-3 h-3 ml-1" />
-          </Link>
-        </div>
-        <div className="editorial-rule mb-6" />
 
-        {topStudents.length === 0 ? (
-          <p className="text-muted-foreground italic font-serif-body">
-            Belum ada data santri.
-          </p>
-        ) : (
-          <HScroller ariaLabel="Peringkat">
-            {topStudents.map((s, i) => (
-              <div
-                key={s.id}
-                className="snap-start shrink-0 w-[70%] sm:w-[40%] md:w-[28%] lg:w-[22%]"
-              >
-                <Link
-                  href={`/student/${s.id}`}
-                  className="group block h-full p-5 rounded-2xl border border-border bg-card hover:border-foreground transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-white shrink-0 ${
-                        i === 0
-                          ? "bg-yellow-500"
-                          : i === 1
-                            ? "bg-gray-400"
-                            : i === 2
-                              ? "bg-amber-600"
-                              : "bg-foreground/40"
-                      }`}
-                    >
-                      {i + 1}
+          <div ref={galleryRef}>
+            <Carousel
+              opts={{
+                align: "start",
+                loop: true,
+                dragFree: true,
+              }}
+              plugins={[pluginGallery.current]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-4 md:-ml-5 pb-4">
+                {galleryItems.map((item, index) => (
+                  <CarouselItem
+                    key={index}
+                    className="pl-4 md:pl-5 basis-[75%] sm:basis-[40%] md:basis-[30%] lg:basis-[23%]"
+                  >
+                    <div className="group relative aspect-[4/5] bg-neutral-950 rounded-2xl overflow-hidden border border-neutral-800 cursor-grab active:cursor-grabbing">
+                      <ImageWithFallback
+                        src={item.src}
+                        alt={item.title}
+                        fallbackType="gradient"
+                        fill
+                        containerClassName="w-full h-full"
+                        className="transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-4">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded w-max mb-2 backdrop-blur-sm">
+                          {item.tag}
+                        </span>
+                        <h4 className="font-bold text-sm text-white line-clamp-2 leading-snug">
+                          {item.title}
+                        </h4>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-sm truncate group-hover:text-primary transition-colors">
-                        {s.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate font-serif-body italic">
-                        {s.bio || "Santri PPMH"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-border flex items-baseline justify-between">
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Total Poin
-                    </span>
-                    <span className="font-display text-2xl font-black text-primary">
-                      {s.totalPoints || 0}
-                    </span>
-                  </div>
-                </Link>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          </div>
+        </section>
+
+        {/* 5. Kabar Populer Section */}
+        <section className="bg-gradient-to-tr from-neutral-950 via-neutral-900/60 to-amber-950/10 border border-amber-900/20 rounded-[2rem] p-5 sm:p-6 lg:p-8 space-y-6 overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <Newspaper className="w-5 h-5" />
               </div>
-            ))}
-          </HScroller>
-        )}
-      </section>
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+                Kabar Populer
+              </h2>
+            </div>
+            <Link
+              href="/blog"
+              className="text-amber-500 text-xs font-bold uppercase tracking-wider hover:text-amber-400 inline-flex items-center gap-1"
+            >
+              Jurnal Berita <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
 
-      {/* Statistik PPMH — horizontal rail */}
-      <section className="max-w-6xl mx-auto px-4 md:px-8 pt-10">
-        <div className="flex justify-between mb-6">
-          <span className="text-foreground inline-flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-              Statistik
-            </h2>
-          </span>
-          <PopoverSelect
-            value={statsRange}
-            onValueChange={setStatsRange}
-            options={[
-              { value: "today", label: "Hari Ini" },
-              { value: "1w", label: "Minggu Ini" },
-              { value: "1m", label: "Bulan Ini" },
-              { value: "1y", label: "Tahun Ini" },
-              { value: "all", label: "All-Time" },
-            ]}
-            className="w-32 h-8 text-[10px] bg-transparent border-border rounded-lg"
-          />
-        </div>
-        <div className="flex items-center gap-4 text-xs uppercase tracking-[0.25em] font-bold text-muted-foreground mb-6">
-          <span className="flex-1 editorial-rule" />
-        </div>
-
-        <HScroller ariaLabel="Statistik PPMH">
-          {stats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div
-                key={s.label}
-                className="snap-start shrink-0 w-[60%] sm:w-[34%] md:w-[24%] lg:w-[20%]"
+          {popularPosts.length === 0 ? (
+            <p className="text-muted-foreground text-sm italic py-2">
+              Belum ada warta terbit.
+            </p>
+          ) : (
+            <div ref={newsRef}>
+              <Carousel
+                opts={{
+                  align: "start",
+                  loop: true,
+                  dragFree: true,
+                }}
+                plugins={[pluginNews.current]}
+                className="w-full"
               >
-                <div className="h-full p-5 rounded-2xl border border-border bg-card hover:border-foreground transition-colors group">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-muted-foreground">
-                    {s.label}
-                  </p>
-                  <p className="font-display text-3xl font-black text-foreground mt-1">
-                    {s.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 truncate font-serif-body italic">
-                    {s.hint}
+                <CarouselContent className="-ml-4 md:-ml-5 pb-4">
+                  {popularPosts.map((post) => (
+                    <CarouselItem
+                      key={post.id}
+                      className="pl-4 md:pl-5 basis-[85%] sm:basis-[45%] md:basis-[32%] lg:basis-[24%]"
+                    >
+                      <div className="h-full bg-neutral-950/70 border border-neutral-800/60 p-3.5 rounded-2xl flex flex-col justify-between group hover:border-amber-500/30 transition-all cursor-grab active:cursor-grabbing">
+                        <div>
+                          <ImageWithFallback
+                            src={post.featured_image || null}
+                            alt={post.title}
+                            fallbackType="gradient"
+                            fill
+                            sizes="280px"
+                            containerClassName="w-full aspect-video rounded-xl overflow-hidden mb-4 shadow-inner relative"
+                            className="transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <div className="flex items-center gap-2 mb-2 text-[10px] uppercase tracking-wider font-bold text-amber-500">
+                            <span>{post.category || "Umum"}</span>
+                            <span className="text-neutral-800">•</span>
+                            <span className="text-muted-foreground lowercase">
+                              {((post as any).organic_views || 0) +
+                                ((post as any).offset_views || 0)}{" "}
+                              views
+                            </span>
+                          </div>
+                          <h3 className="font-display text-sm sm:text-base font-bold text-emerald-50 line-clamp-2 leading-snug group-hover:text-amber-400 transition-colors">
+                            {post.title}
+                          </h3>
+                        </div>
+                        {post.excerpt && (
+                          <p className="mt-2.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {post.excerpt}
+                          </p>
+                        )}
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </div>
+          )}
+        </section>
+
+        {/* 3. Program Unggulan Section */}
+        <section className="bg-neutral-900/40 border border-neutral-800/60 rounded-[2rem] p-5 sm:p-6 lg:p-8 space-y-6 md:space-y-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Compass className="w-5 h-5" />
+            </div>
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+              Program Unggulan
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {programs.map((prog, idx) => (
+              <div
+                key={idx}
+                className="p-5 md:p-6 rounded-2xl bg-neutral-950/60 border border-neutral-800 hover:border-emerald-900/60 transition-all flex gap-4 items-start group"
+              >
+                <span className="text-2xl bg-emerald-950/80 p-3 rounded-xl border border-emerald-900/40 group-hover:scale-105 transition-transform">
+                  {prog.icon}
+                </span>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-emerald-50">
+                    {prog.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    {prog.desc}
                   </p>
                 </div>
               </div>
-            );
-          })}
-
-          {/* Trend mini chart card inside the same rail */}
-          <div className="snap-start shrink-0 w-[80%] sm:w-[60%] md:w-[40%] lg:w-[34%]">
-            <div className="h-full p-5 rounded-2xl border border-border bg-card">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-muted-foreground">
-                  Tren Aktivitas
-                </p>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  7 Hari
-                </span>
-              </div>
-              <div className="h-28 -mx-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={trendData}
-                    margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="landingAktif"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0.35}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="hsl(var(--primary))"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fill: "#888" }}
-                    />
-                    <YAxis hide />
-                    <CartesianGrid
-                      vertical={false}
-                      stroke="hsl(var(--border))"
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        borderRadius: 12,
-                        border: "1px solid hsl(var(--border))",
-                        background: "hsl(var(--background))",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="aktif"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      fill="url(#landingAktif)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            ))}
           </div>
-        </HScroller>
-      </section>
+        </section>
 
-      {/* Berita Section */}
-      <section className="max-w-6xl mx-auto px-2 md:px-8 pt-8 text-left">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <Newspaper className="w-6 h-6 text-primary" />
-            <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-              Berita
+        {/* 7. Q&A / FAQ Section */}
+        <section className="bg-neutral-900/20 border border-neutral-900/60 rounded-[2rem] p-5 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
+          <div className="flex items-center gap-3 justify-center text-center">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <HelpCircle className="w-5 h-5" />
+            </div>
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+              Tanya Jawab (Q&A)
             </h2>
           </div>
-          <Link
-            href="/blog"
-            className="text-primary text-xs font-bold uppercase tracking-widest hover:underline inline-flex items-center"
-          >
-            Lihat Semua <ArrowRight className="w-3 h-3 ml-1" />
-          </Link>
-        </div>
-        <div className="editorial-rule mb-6" />
-
-        {/* Horizontal Scroll List (Popular/Featured) */}
-        {allPosts.length > 0 && (
-          <div className="mb-4 ml-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-foreground mb-5 uppercase tracking-widest">
-              <Star className="w-4 h-4 text-primary" /> Populer Saat Ini
-            </div>
-            <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-5 pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-              {[...allPosts]
-                .sort(
-                  (a, b) =>
-                    ((b as any).organic_views || 0) +
-                    ((b as any).offset_views || 0) -
-                    (((a as any).organic_views || 0) +
-                      ((a as any).offset_views || 0)),
-                )
-                .slice(0, 5)
-                .map((post) => (
-                  <Link
-                    key={post.id}
-                    href={`/blog/${post.slug || post.id}`}
-                    className="snap-start shrink-0 w-[200px] flex flex-col group"
+          <div className="space-y-3 md:space-y-4">
+            {faqs.map((faq, idx) => {
+              const isOpen = activeFaq === idx;
+              return (
+                <div
+                  key={idx}
+                  className="border border-neutral-800/80 rounded-2xl bg-neutral-950/40 overflow-hidden transition-colors hover:border-emerald-900/40"
+                >
+                  <button
+                    onClick={() => setActiveFaq(isOpen ? null : idx)}
+                    className="w-full flex items-center justify-between p-4 md:p-5 text-left font-semibold text-sm sm:text-base text-emerald-50 transition-colors"
                   >
-                    <ImageWithFallback
-                      src={post.featured_image || null}
-                      alt={post.title}
-                      fallbackType="gradient"
-                      fill
-                      sizes="320px"
-                      containerClassName="w-full aspect-[16/10] sm:aspect-video rounded-2xl overflow-hidden mb-4 shadow-sm"
-                      className="transition-transform duration-500 md:group-hover:scale-105"
+                    <span>{faq.q}</span>
+                    <ChevronDown
+                      className={`w-5 h-5 text-amber-500 shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
                     />
-                    <div className="flex items-center gap-2 mb-2">
-                      {post.category && (
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-primary">
-                          {post.category}
-                        </span>
-                      )}
-                      <span className="text-muted-foreground/30 text-[10px]">
-                        •
-                      </span>
-                      <div className="flex items-center text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        <span>
-                          {((post as any).organic_views || 0) +
-                            ((post as any).offset_views || 0)}{" "}
-                          views
-                        </span>
-                      </div>
-                    </div>
-                    <h3 className="font-display text-sm md:text-lg font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
-                      {post.title}
-                    </h3>
-                    {post.excerpt && (
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {post.excerpt}
-                      </p>
-                    )}
-                  </Link>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Vertical List View (Artikel Terbaru) */}
-        {allPosts.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 text-sm font-bold text-foreground uppercase tracking-widest border-b border-border/50 pb-3">
-              <Activity className="w-4 h-4 text-primary" /> Artikel Terbaru
-            </div>
-            <div className="flex flex-col">
-              {[...allPosts]
-                .sort((a, b) =>
-                  (b.published_at || "").localeCompare(a.published_at || ""),
-                )
-                .slice(0, 5)
-                .map((post, i, arr) => (
-                  <Link
-                    key={post.id}
-                    href={`/blog/${post.slug || post.id}`}
-                    className={`flex items-center sm:items-start gap-4 sm:gap-6 group py-4 sm:py-8 ${
-                      i !== arr.length - 1 ? "border-b border-border/40" : ""
-                    }`}
-                  >
-                    <ImageWithFallback
-                      src={post.featured_image || null}
-                      alt={post.title}
-                      fallbackType="gradient"
-                      fill
-                      sizes="160px"
-                      containerClassName="w-24 h-24 md:w-40 md:h-32 shrink-0 rounded-xl overflow-hidden shadow-sm self-center sm:self-start"
-                      className="transition-transform duration-500 md:group-hover:scale-105"
-                    />
-                    <div className="flex-1 min-w-0 flex flex-col justify-center self-stretch py-1">
-                      <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                        {post.category && (
-                          <span className="text-[10px] sm:text-xs uppercase tracking-widest font-bold text-primary">
-                            {post.category}
-                          </span>
-                        )}
-                        <span className="text-muted-foreground/30 text-[10px] sm:text-xs">
-                          •
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
-                          <time>
-                            {post.published_at
-                              ? new Date(post.published_at).toLocaleDateString(
-                                  "id-ID",
-                                  {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )
-                              : "-"}
-                          </time>
-                        </div>
-                      </div>
-                      <h3 className="font-display text-sm md:text-xl font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors text-pretty">
-                        {post.title}
-                      </h3>
-                      {post.excerpt && (
-                        <p className="mt-2 text-xs md:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                          {post.excerpt}
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                      >
+                        <p className="p-4 md:p-5 pt-0 md:pt-0 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-neutral-900/30 bg-neutral-950/20">
+                          {faq.a}
                         </p>
-                      )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* 2. Leaderboard Rail - SEKARANG MENGGUNAKAN SHADCN CAROUSEL & MOUSE SCROLL */}
+        <section className="bg-gradient-to-br from-emerald-950/40 via-emerald-900/20 to-neutral-950 border border-emerald-800/40 rounded-[2rem] p-5 sm:p-6 lg:p-8 shadow-xl backdrop-blur-sm overflow-hidden">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+                Top Santri Berprestasi
+              </h2>
+            </div>
+            <Link
+              href="/leaderboard"
+              className="text-amber-500 text-xs font-bold uppercase tracking-wider hover:text-amber-400 inline-flex items-center gap-1 transition-colors"
+            >
+              Semua <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {topStudents.length === 0 ? (
+            <p className="text-muted-foreground text-sm italic py-4">
+              Menunggu sinkronisasi data capaian...
+            </p>
+          ) : (
+            <div ref={leaderboardRef}>
+              <Carousel
+                opts={{
+                  align: "start",
+                  loop: true,
+                  dragFree: true,
+                }}
+                plugins={[pluginLeaderboard.current]}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-4 md:-ml-5 pb-4">
+                  {topStudents.map((s, i) => (
+                    <CarouselItem
+                      key={s.id}
+                      className="pl-4 md:pl-5 basis-[85%] sm:basis-[45%] md:w-[30%] lg:basis-[24%]"
+                    >
+                      <Link
+                        href={`/student/${s.id}`}
+                        className="group block h-full p-4 md:p-5 rounded-2xl border border-emerald-900/40 bg-neutral-950/80 hover:border-amber-500/40 transition-all hover:bg-neutral-900/90 cursor-grab active:cursor-grabbing"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 text-neutral-950 ${
+                              i === 0
+                                ? "bg-amber-400"
+                                : i === 1
+                                  ? "bg-slate-300"
+                                  : i === 2
+                                    ? "bg-amber-700"
+                                    : "bg-emerald-800 text-emerald-100"
+                            }`}
+                          >
+                            #{i + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm truncate group-hover:text-amber-400 transition-colors">
+                              {s.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate font-serif italic mt-0.5">
+                              {s.bio || "Santri PPMH"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-5 pt-4 border-t border-emerald-900/30 flex items-end justify-between">
+                          <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                            Total Poin
+                          </span>
+                          <span className="font-display text-2xl font-black text-amber-500 leading-none">
+                            {s.totalPoints || 0}
+                          </span>
+                        </div>
+                      </Link>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </div>
+          )}
+        </section>
+
+        {/* 4. Analytics & Trends Section */}
+        <section className="bg-black border border-emerald-950 rounded-[2rem] p-5 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 shadow-2xl">
+          <div className="lg:col-span-2 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-sm sm:text-base font-bold text-muted-foreground uppercase tracking-widest">
+                Metrik Data
+              </h3>
+              <PopoverSelect
+                value={statsRange}
+                onValueChange={setStatsRange}
+                options={[
+                  { value: "today", label: "Hari Ini" },
+                  { value: "1w", label: "Minggu Ini" },
+                  { value: "1m", label: "Bulan Ini" },
+                  { value: "all", label: "All-Time" },
+                ]}
+                className="w-32 h-9 text-xs bg-neutral-900 border-neutral-800 text-muted-foreground rounded-lg"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {stats.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div
+                    key={s.label}
+                    className="p-4 md:p-5 rounded-2xl border border-neutral-900 bg-neutral-950/40"
+                  >
+                    <div className="flex items-center justify-between text-muted-foreground mb-2">
+                      <p className="text-[10px] sm:text-xs uppercase tracking-wider font-bold">
+                        {s.label}
+                      </p>
+                      <Icon className="w-4 h-4 text-emerald-500" />
                     </div>
-                  </Link>
-                ))}
+                    <p className="font-display text-2xl sm:text-3xl font-black text-amber-500 mt-1">
+                      {s.value}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
-      </section>
+
+          <div className="p-5 rounded-2xl border border-neutral-900 bg-neutral-950/40 flex flex-col justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-widest font-bold text-muted-foreground">
+                Grafik Keaktifan
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 font-serif italic">
+                Rasio setoran target 7 hari terakhir
+              </p>
+            </div>
+            <div className="h-32 mt-5 -ml-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={trendData}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="aktifGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="5%"
+                        stopColor="#f59e0b"
+                        stopOpacity={0.25}
+                      />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#555" }}
+                    dy={5}
+                  />
+                  <YAxis hide />
+                  <CartesianGrid
+                    vertical={false}
+                    stroke="#166534"
+                    strokeDasharray="3 3"
+                    opacity={0.3}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #1e3a1e",
+                      background: "#050505",
+                      fontSize: 11,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="aktif"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    fill="url(#aktifGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
