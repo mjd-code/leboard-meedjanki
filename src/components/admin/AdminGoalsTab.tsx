@@ -468,7 +468,9 @@ export function AdminGoalsTab({
             Grup, Kategori & Tugas
           </h3>
           <p className="text-muted-foreground text-sm mt-3">
-            Kelola hierarki 3 tingkat dengan urutan kustom.
+            Kelola hierarki 3 tingkat dengan urutan kustom. Grup & kategori
+            tersinkron otomatis ke halaman Program publik — klik nama untuk ubah
+            cepat.
           </p>
         </div>
         <div className="flex flex-wrap gap-3 w-full sm:w-auto">
