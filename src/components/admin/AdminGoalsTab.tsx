@@ -12,8 +12,10 @@ import {
   Layers,
   Pencil,
   MonitorPlay,
+  Loader2,
 } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
