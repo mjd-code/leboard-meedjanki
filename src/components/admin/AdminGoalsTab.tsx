@@ -866,6 +866,13 @@ export function AdminGoalsTab({
                         onSave={(name) =>
                           saveCategory({ ...catNode.category, name })
                         }
+                        validate={(name) =>
+                          validateCategoryNameInGroup(
+                            name,
+                            catNode.category.id,
+                            catNode.category.groupId || FALLBACK_GROUP_ID,
+                          )
+                        }
                         className="font-bold text-foreground"
                       />
                     )}
