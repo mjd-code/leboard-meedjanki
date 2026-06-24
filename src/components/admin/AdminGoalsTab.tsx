@@ -728,9 +728,19 @@ export function AdminGoalsTab({
                   {!isFallbackCat && <DragHandle />}
                   <FolderTree className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-foreground truncate">
-                      {catNode.category.name}
-                    </span>
+                    {isFallbackCat ? (
+                      <span className="font-bold text-foreground truncate">
+                        {catNode.category.name}
+                      </span>
+                    ) : (
+                      <InlineEditableText
+                        value={catNode.category.name}
+                        onSave={(name) =>
+                          saveCategory({ ...catNode.category, name })
+                        }
+                        className="font-bold text-foreground"
+                      />
+                    )}
                     {catNode.category.description && (
                       <span className="text-[11px] text-muted-foreground/90 italic truncate max-w-[48ch]">
                         {catNode.category.description}
