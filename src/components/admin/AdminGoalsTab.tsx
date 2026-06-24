@@ -713,6 +713,9 @@ export function AdminGoalsTab({
                       <InlineEditableText
                         value={node.group.name}
                         onSave={(name) => saveGroup({ ...node.group, name })}
+                        validate={(name) =>
+                          validateGroupName(name, node.group.id)
+                        }
                         className="font-black text-foreground"
                       />
                     )}
