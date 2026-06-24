@@ -579,9 +579,27 @@ export function AdminGoalsTab({
                   <Layers className="h-5 w-5 text-primary shrink-0" />
                 )}
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="font-black text-foreground truncate">
-                    {node.group.name}
-                  </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isSystem ? (
+                      <span className="font-black text-foreground truncate">
+                        {node.group.name}
+                      </span>
+                    ) : (
+                      <InlineEditableText
+                        value={node.group.name}
+                        onSave={(name) => saveGroup({ ...node.group, name })}
+                        className="font-black text-foreground"
+                      />
+                    )}
+                    {!isSystem && (
+                      <span
+                        className="hidden sm:inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded-md shrink-0"
+                        title="Grup ini tampil sebagai kartu Program di halaman publik"
+                      >
+                        <MonitorPlay className="h-3 w-3" /> Program
+                      </span>
+                    )}
+                  </div>
                   {node.group.description && (
                     <span className="text-[11px] text-muted-foreground/90 italic truncate max-w-[42ch]">
                       {node.group.description}
