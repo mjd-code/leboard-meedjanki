@@ -287,38 +287,61 @@ export function AdminGoalsTab({
   const addCategoryToGroup = async (groupId: string) => {
     const name = (catDraftByGroup[groupId] || "").trim();
     if (!name) return;
+    const dupErr = validateCategoryNameInGroup(name, "", groupId);
+    if (dupErr) {
+      toast.error(dupErr);
+      return;
+    }
     const siblings = categories.filter(
       (c) => (c.groupId || FALLBACK_GROUP_ID) === groupId,
     );
     const order = (sortByOrder(siblings).slice(-1)[0]?.order ?? -1) + 1;
     const body: any = { name, order };
     if (groupId !== FALLBACK_GROUP_ID) body.groupId = groupId;
-    const res = await apiFetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) alert(`Gagal membuat kategori: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal membuat kategori: ${res.statusText}`);
+        return;
+      }
       setCatDraftByGroup((p) => ({ ...p, [groupId]: "" }));
+      toast.success(`Kategori "${name}" dibuat`);
       refreshData();
+    } catch (e: any) {
+      toast.error(
+        `Gagal membuat kategori: ${e?.message || "kesalahan jaringan"}`,
+      );
     }
   };
 
-  const saveCategory = async (cat: Category) => {
+  const saveCategory = async (cat: Category): Promise<boolean> => {
     const isNew = !cat.id;
     const url = isNew ? `/api/categories` : `/api/categories/${cat.id}`;
-    const res = await apiFetch(url, {
-      method: isNew ? "POST" : "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cat),
-    });
-    if (!res.ok) alert(`Gagal menyimpan kategori: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch(url, {
+        method: isNew ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cat),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal menyimpan kategori: ${res.statusText}`);
+        return false;
+      }
       setCatModalOpen(false);
       setEditCatData(null);
       setEditCatGroupId(null);
+      toast.success(`Kategori "${cat.name}" disimpan`);
       refreshData();
+      return true;
+    } catch (e: any) {
+      toast.error(
+        `Gagal menyimpan kategori: ${e?.message || "kesalahan jaringan"}`,
+      );
+      return false;
     }
   };
 
