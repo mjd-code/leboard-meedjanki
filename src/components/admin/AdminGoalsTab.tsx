@@ -12,8 +12,10 @@ import {
   Layers,
   Pencil,
   MonitorPlay,
+  Loader2,
 } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -59,37 +61,77 @@ import {
 // /api/{groups|categories|masterGoals}/reorder with the full ordered ID list.
 // ---------------------------------------------------------------------------
 
+// Max characters allowed for an inline-edited Group/Category name.
+const INLINE_NAME_MAX = 80;
+
 // Inline rename: click the name to edit in place. Enter/blur saves, Esc cancels.
+// Validates the draft, applies the new value optimistically, and reverts +
+// surfaces a toast if the async save rejects.
 function InlineEditableText({
   value,
   onSave,
+  validate,
   className,
   inputClassName,
 }: {
   value: string;
-  onSave: (next: string) => void;
+  /** Returns true on success. Falsy/throw reverts the optimistic value. */
+  onSave: (next: string) => Promise<boolean> | boolean;
+  /** Returns an error message string when invalid, otherwise null. */
+  validate?: (next: string) => string | null;
   className?: string;
   inputClassName?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  const commit = () => {
+  const [display, setDisplay] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+    setDisplay(value);
+  }, [value]);
+
+  const commit = async () => {
     const v = draft.trim();
+    if (v === value.trim()) {
+      setEditing(false);
+      setDraft(value);
+      return;
+    }
+    const err = validate ? validate(v) : v ? null : "Nama tidak boleh kosong";
+    if (err) {
+      toast.error(err);
+      return; // keep the field open so the user can fix it
+    }
+    // Optimistic: close the editor and show the new value immediately.
     setEditing(false);
-    if (v && v !== value) onSave(v);
-    else setDraft(value);
+    setDisplay(v);
+    setSaving(true);
+    try {
+      const okSaved = await onSave(v);
+      if (!okSaved) setDisplay(value);
+    } catch {
+      setDisplay(value);
+    } finally {
+      setSaving(false);
+    }
   };
+
   if (editing) {
     return (
       <input
         autoFocus
         value={draft}
+        maxLength={INLINE_NAME_MAX}
         onChange={(e) => setDraft(e.target.value)}
         onClick={(e) => e.stopPropagation()}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
           if (e.key === "Escape") {
             setDraft(value);
             setEditing(false);
@@ -106,16 +148,21 @@ function InlineEditableText({
     <span
       className={
         "group/edit inline-flex items-center gap-1.5 cursor-text min-w-0 " +
+        (saving ? "opacity-60 " : "") +
         (className || "")
       }
       onClick={(e) => {
         e.stopPropagation();
-        setEditing(true);
+        if (!saving) setEditing(true);
       }}
       title="Klik untuk ubah nama"
     >
-      <span className="truncate">{value}</span>
-      <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+      <span className="truncate">{display}</span>
+      {saving ? (
+        <Loader2 className="h-3 w-3 animate-spin shrink-0 text-primary" />
+      ) : (
+        <Pencil className="h-3 w-3 opacity-0 group-hover/edit:opacity-60 shrink-0" />
+      )}
     </span>
   );
 }
@@ -174,36 +221,89 @@ export function AdminGoalsTab({
   const toggleCat = (id: string) =>
     setExpandedCats((p) => ({ ...p, [id]: !p[id] }));
 
+  // ---- INLINE VALIDATION -------------------------------------------------
+  // Returns an error message when the name is invalid, otherwise null.
+  const validateGroupName = (next: string, currentId: string): string | null => {
+    const v = next.trim();
+    if (!v) return "Nama grup tidak boleh kosong";
+    if (v.length > INLINE_NAME_MAX)
+      return `Nama grup maksimal ${INLINE_NAME_MAX} karakter`;
+    const dup = groups.some(
+      (g) =>
+        g.id !== currentId &&
+        (g.name || "").trim().toLowerCase() === v.toLowerCase(),
+    );
+    if (dup) return `Nama grup "${v}" sudah dipakai`;
+    return null;
+  };
+  const validateCategoryNameInGroup = (
+    next: string,
+    currentId: string,
+    groupId: string,
+  ): string | null => {
+    const v = next.trim();
+    if (!v) return "Nama kategori tidak boleh kosong";
+    if (v.length > INLINE_NAME_MAX)
+      return `Nama kategori maksimal ${INLINE_NAME_MAX} karakter`;
+    const dup = categories.some(
+      (c) =>
+        c.id !== currentId &&
+        (c.groupId || FALLBACK_GROUP_ID) === groupId &&
+        (c.name || "").trim().toLowerCase() === v.toLowerCase(),
+    );
+    if (dup) return `Nama kategori "${v}" sudah ada di grup ini`;
+    return null;
+  };
+
   // ---- GROUP CRUD --------------------------------------------------------
   const addGroup = async () => {
     const name = newGroupName.trim();
     if (!name) return;
+    const dupErr = validateGroupName(name, "");
+    if (dupErr) {
+      toast.error(dupErr);
+      return;
+    }
     const order = (sortByOrder(groups).slice(-1)[0]?.order ?? -1) + 1;
-    const res = await apiFetch("/api/groups", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, order }),
-    });
-    if (!res.ok) alert(`Gagal membuat grup: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, order }),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal membuat grup: ${res.statusText}`);
+        return;
+      }
       setNewGroupName("");
+      toast.success(`Grup "${name}" dibuat`);
       refreshData();
+    } catch (e: any) {
+      toast.error(`Gagal membuat grup: ${e?.message || "kesalahan jaringan"}`);
     }
   };
 
-  const saveGroup = async (g: Group) => {
+  const saveGroup = async (g: Group): Promise<boolean> => {
     const url = g.id ? `/api/groups/${g.id}` : "/api/groups";
     const method = g.id ? "PUT" : "POST";
-    const res = await apiFetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(g),
-    });
-    if (!res.ok) alert(`Gagal menyimpan grup: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(g),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal menyimpan grup: ${res.statusText}`);
+        return false;
+      }
       setGroupModalOpen(false);
       setEditGroupData(null);
+      toast.success(`Grup "${g.name}" disimpan`);
       refreshData();
+      return true;
+    } catch (e: any) {
+      toast.error(`Gagal menyimpan grup: ${e?.message || "kesalahan jaringan"}`);
+      return false;
     }
   };
 
@@ -221,38 +321,61 @@ export function AdminGoalsTab({
   const addCategoryToGroup = async (groupId: string) => {
     const name = (catDraftByGroup[groupId] || "").trim();
     if (!name) return;
+    const dupErr = validateCategoryNameInGroup(name, "", groupId);
+    if (dupErr) {
+      toast.error(dupErr);
+      return;
+    }
     const siblings = categories.filter(
       (c) => (c.groupId || FALLBACK_GROUP_ID) === groupId,
     );
     const order = (sortByOrder(siblings).slice(-1)[0]?.order ?? -1) + 1;
     const body: any = { name, order };
     if (groupId !== FALLBACK_GROUP_ID) body.groupId = groupId;
-    const res = await apiFetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) alert(`Gagal membuat kategori: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal membuat kategori: ${res.statusText}`);
+        return;
+      }
       setCatDraftByGroup((p) => ({ ...p, [groupId]: "" }));
+      toast.success(`Kategori "${name}" dibuat`);
       refreshData();
+    } catch (e: any) {
+      toast.error(
+        `Gagal membuat kategori: ${e?.message || "kesalahan jaringan"}`,
+      );
     }
   };
 
-  const saveCategory = async (cat: Category) => {
+  const saveCategory = async (cat: Category): Promise<boolean> => {
     const isNew = !cat.id;
     const url = isNew ? `/api/categories` : `/api/categories/${cat.id}`;
-    const res = await apiFetch(url, {
-      method: isNew ? "POST" : "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cat),
-    });
-    if (!res.ok) alert(`Gagal menyimpan kategori: ${res.statusText}`);
-    else {
+    try {
+      const res = await apiFetch(url, {
+        method: isNew ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cat),
+      });
+      if (!res.ok) {
+        toast.error(`Gagal menyimpan kategori: ${res.statusText}`);
+        return false;
+      }
       setCatModalOpen(false);
       setEditCatData(null);
       setEditCatGroupId(null);
+      toast.success(`Kategori "${cat.name}" disimpan`);
       refreshData();
+      return true;
+    } catch (e: any) {
+      toast.error(
+        `Gagal menyimpan kategori: ${e?.message || "kesalahan jaringan"}`,
+      );
+      return false;
     }
   };
 
@@ -590,6 +713,9 @@ export function AdminGoalsTab({
                       <InlineEditableText
                         value={node.group.name}
                         onSave={(name) => saveGroup({ ...node.group, name })}
+                        validate={(name) =>
+                          validateGroupName(name, node.group.id)
+                        }
                         className="font-black text-foreground"
                       />
                     )}
@@ -739,6 +865,13 @@ export function AdminGoalsTab({
                         value={catNode.category.name}
                         onSave={(name) =>
                           saveCategory({ ...catNode.category, name })
+                        }
+                        validate={(name) =>
+                          validateCategoryNameInGroup(
+                            name,
+                            catNode.category.id,
+                            catNode.category.groupId || FALLBACK_GROUP_ID,
+                          )
                         }
                         className="font-bold text-foreground"
                       />
