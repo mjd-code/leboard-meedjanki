@@ -26,6 +26,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -39,6 +40,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const EXCLUDED_ROUTES = ["/about"];
 
   const { data: authData, isLoading: isAuthLoading } = useAuthQuery();
   const { data: appData, isLoading: isAppDataLoading } = useAppDataQuery();
@@ -245,7 +247,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
       /> */}
 
       {/* Scroll to top – bottom-right, above FAB (with breathing room) */}
-      <div className="fixed bottom-20 md:bottom-5 right-4 z-50">
+      <div
+        className={cn(
+          "fixed right-4 z-50 transition-all duration-300 ease-in-out",
+          pathname === "/about" || pathname === "/" ? "bottom-20" : "bottom-5",
+        )}
+      >
         <ScrollToTop />
       </div>
 

@@ -33,7 +33,7 @@ const ProgramTab = dynamic(() => import("@/components/about/ProgramTab"), {
 const GaleriTab = dynamic(() => import("@/components/about/GaleryTab"), {
   loading: () => <TabSkeleton />,
 });
-const StrukturTab = dynamic(() => import("@/components/about/StrukturTab"), {
+const PeringkatTab = dynamic(() => import("@/components/about/PeringkatTab"), {
   loading: () => <TabSkeleton />,
 });
 
@@ -45,7 +45,13 @@ function TabSkeleton() {
 
 export function AboutPage() {
   const [activeTab, setActiveTab] = useState<
-    "beranda" | "blog" | "sejarah" | "program" | "galeri" | "struktur" | "login"
+    | "beranda"
+    | "blog"
+    | "sejarah"
+    | "program"
+    | "galeri"
+    | "peringkat"
+    | "login"
   >("beranda");
   const [isStickyFloating, setIsStickyFloating] = useState(false);
 
@@ -153,12 +159,12 @@ export function AboutPage() {
   }, [activeTab, isStickyFloating]);
 
   const tabs = [
-    { id: "sejarah", label: "Sejarah", icon: History },
+    // { id: "sejarah", label: "Sejarah", icon: History },
     { id: "beranda", label: "Beranda", icon: Compass },
     { id: "blog", label: "Blog", icon: Newspaper },
     { id: "program", label: "Program", icon: Compass },
     { id: "galeri", label: "Galeri", icon: ImageIcon },
-    { id: "struktur", label: "Struktur", icon: Users },
+    { id: "peringkat", label: "Peringkat", icon: Users },
     { id: "login", label: "login", icon: Settings },
   ] as const;
 
@@ -191,7 +197,7 @@ export function AboutPage() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTabIndicatorMain"
-                    className="absolute inset-0 rounded-xl border border-amber-400 -z-10"
+                    className="absolute inset-0 rounded-xl -z-10"
                   />
                 )}
               </button>
@@ -210,11 +216,11 @@ export function AboutPage() {
       <AnimatePresence>
         {isStickyFloating && (
           <motion.div
-            initial={{ y: -20, opacity: 0 }}
+            initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
+            exit={{ y: 20, opacity: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="fixed left-0 right-0 z-50 px-4 py-3 bg-background/80 backdrop-blur-lg border-emerald-900/20 shadow-2xl top-0 border-b"
+            className="fixed left-0 right-0 z-50 px-4 py-3 bg-background/80 backdrop-blur-lg border-emerald-900/20 shadow-2xl bottom-0 border-b"
           >
             <div className="max-w-4xl mx-auto w-full">
               <div
@@ -240,7 +246,7 @@ export function AboutPage() {
                       {isActive && (
                         <motion.div
                           layoutId="activeTabIndicatorFloating"
-                          className="absolute inset-0 rounded-lg border border-amber-400 -z-10"
+                          className="absolute inset-0 rounded-lg -z-10"
                         />
                       )}
                     </button>
@@ -263,20 +269,18 @@ export function AboutPage() {
             transition={{ duration: 0.15 }}
             className="w-full"
           >
+            {activeTab === "sejarah" && <SejarahTab />}
             {activeTab === "beranda" && (
               <BerandaTab createWheelHandler={createWheelHandler} />
             )}
-            {activeTab === "blog" && (
-              <BlogListTab />
-            )}
-            {activeTab === "sejarah" && <SejarahTab />}
+            {activeTab === "blog" && <BlogListTab />}
             {activeTab === "program" && (
               <ProgramTab createWheelHandler={createWheelHandler} />
             )}
             {activeTab === "galeri" && (
               <GaleriTab createWheelHandler={createWheelHandler} />
             )}
-            {activeTab === "struktur" && <StrukturTab />}
+            {activeTab === "peringkat" && <PeringkatTab />}
             {activeTab === "login" && (
               <LoginTab onLogin={() => router.push("/admin")} />
             )}

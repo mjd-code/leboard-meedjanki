@@ -223,7 +223,10 @@ export function AdminGoalsTab({
 
   // ---- INLINE VALIDATION -------------------------------------------------
   // Returns an error message when the name is invalid, otherwise null.
-  const validateGroupName = (next: string, currentId: string): string | null => {
+  const validateGroupName = (
+    next: string,
+    currentId: string,
+  ): string | null => {
     const v = next.trim();
     if (!v) return "Nama grup tidak boleh kosong";
     if (v.length > INLINE_NAME_MAX)
@@ -302,7 +305,9 @@ export function AdminGoalsTab({
       refreshData();
       return true;
     } catch (e: any) {
-      toast.error(`Gagal menyimpan grup: ${e?.message || "kesalahan jaringan"}`);
+      toast.error(
+        `Gagal menyimpan grup: ${e?.message || "kesalahan jaringan"}`,
+      );
       return false;
     }
   };

@@ -1,8 +1,17 @@
 "use client";
 
+// import { AboutPage } from "@/components/about/AboutPage";
 import dynamic from "next/dynamic";
-const LandingPage = dynamic(() => import("@/components/pages/LandingPage").then(mod => mod.LandingPage), { ssr: false });
+
+const AboutPage = dynamic(
+  () => import("@/components/about/AboutPage").then((m) => m.AboutPage),
+  { ssr: true },
+);
 
 export default function Page() {
-  return <LandingPage />;
+  return (
+    <>
+      <AboutPage />
+    </>
+  );
 }
