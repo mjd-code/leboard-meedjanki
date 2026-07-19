@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Eye, Award, History, Users, BookOpen } from "lucide-react";
-import Image from "next/image";
 import { apiFetch } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/gdrive";
 import type { SejarahSection, Personnel } from "@/lib/types";
