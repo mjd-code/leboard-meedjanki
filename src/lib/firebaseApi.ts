@@ -1045,7 +1045,9 @@ export async function firebaseApiFetch(
       path === '/api/logs' ||
       path === '/api/events' ||
       path === '/api/galleryCategories' ||
-      path === '/api/galleryItems');
+      path === '/api/galleryItems' ||
+      path === '/api/sejarahContent' ||
+      path === '/api/personnel');
   const cacheScope = isCacheableRead ? `read::${url}` : null;
 
   const finalize = async (res: Response) => {
