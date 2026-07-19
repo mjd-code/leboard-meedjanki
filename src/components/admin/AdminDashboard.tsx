@@ -20,6 +20,7 @@ import {
   BookOpen,
   HardDrive,
   Image as ImageIcon,
+  History,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch, removeLocalToken } from "../../lib/api";
@@ -33,6 +34,7 @@ import { AdminUserManagement } from "./AdminUserManagement";
 import { AdminBlogTab } from "./AdminBlogTab";
 import { AdminDatabaseTab } from "./AdminDatabaseTab";
 import { AdminGalleryTab } from "./AdminGalleryTab";
+import { AdminSejarahTab } from "./AdminSejarahTab";
 import { useAuthRole } from "@/hooks/useAuthRole";
 import type {
   Category,
@@ -161,6 +163,12 @@ export function AdminDashboard({
                   show: true,
                 },
                 {
+                  id: "sejarah",
+                  label: "Sejarah",
+                  icon: History,
+                  show: true,
+                },
+                {
                   id: "database",
                   label: "Database Manager",
                   icon: HardDrive,
@@ -242,6 +250,7 @@ export function AdminDashboard({
           )}
           {activeTab === "blog" && <AdminBlogTab />}
           {activeTab === "gallery" && <AdminGalleryTab />}
+          {activeTab === "sejarah" && <AdminSejarahTab />}
           {activeTab === "database" && <AdminDatabaseTab />}
           {activeTab === "statistics" && <AdminStatisticsTab />}
           {activeTab === "import-export" && (
