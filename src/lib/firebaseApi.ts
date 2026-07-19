@@ -664,6 +664,111 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
       return ok();
     }
 
+    // ===== SEJARAH CONTENT (About > Sejarah editorial sections) =====
+    const mapSejarah = (r: any) => ({
+      id: r.id,
+      key: r.key || r.id,
+      title: r.title || "",
+      body: r.body || "",
+      imageUrl: r.image_url || "",
+      imagePath: r.image_path || "",
+      visible: r.visible !== false,
+      misi: Array.isArray(r.misi) ? r.misi : [],
+      updatedAt: r.updated_at || undefined,
+    });
+    const mapSejarahInput = (s: any) => {
+      const out: any = {};
+      if (s.key !== undefined) out.key = s.key;
+      if (s.title !== undefined) out.title = s.title;
+      if (s.body !== undefined) out.body = s.body;
+      if (s.imageUrl !== undefined) out.image_url = s.imageUrl;
+      if (s.imagePath !== undefined) out.image_path = s.imagePath;
+      if (s.visible !== undefined) out.visible = !!s.visible;
+      if (s.misi !== undefined) out.misi = Array.isArray(s.misi) ? s.misi : [];
+      out.updated_at = new Date().toISOString();
+      return out;
+    };
+    if (path === "/api/sejarahContent" && method === "GET") {
+      const rows = await connSelect(conn, "sejarah_content").catch(() => []);
+      return ok((rows || []).map(mapSejarah));
+    }
+    if (path === "/api/sejarahContent" && method === "POST") {
+      const input = { ...mapSejarahInput(body || {}) };
+      // Upsert by `key` so each section has a single canonical row.
+      const rows = await connUpsertReturning(conn, "sejarah_content", [input], "key");
+      return ok(mapSejarah(rows?.[0] || input));
+    }
+    const sejMatch = path.match(/^\/api\/sejarahContent\/([^/]+)$/);
+    if (sejMatch) {
+      const id = sejMatch[1];
+      if (method === "PUT") {
+        const input = mapSejarahInput(body || {});
+        const rows = await connUpdate(conn, "sejarah_content", `id=eq.${id}`, input);
+        return ok(mapSejarah(rows?.[0] || { id, ...input }));
+      }
+      if (method === "DELETE") {
+        await connDeleteById(conn, "sejarah_content", id);
+        return ok();
+      }
+    }
+
+    // ===== PERSONNEL (Masyayikh & Pengurus) =====
+    const mapPersonnel = (r: any) => ({
+      id: r.id,
+      kind: r.kind === "pengurus" ? "pengurus" : "masyayikh",
+      name: r.name || "",
+      role: r.role || "",
+      bio: r.bio || "",
+      sourceType: r.source_type === "upload" ? "upload" : "drive",
+      photoUrl: r.photo_url || "",
+      photoPath: r.photo_path || "",
+      order: r.order ?? 0,
+      visible: r.visible !== false,
+      createdAt: r.created_at || undefined,
+    });
+    const mapPersonnelInput = (p: any) => {
+      const out: any = {};
+      if (p.kind !== undefined) out.kind = p.kind;
+      if (p.name !== undefined) out.name = p.name;
+      if (p.role !== undefined) out.role = p.role;
+      if (p.bio !== undefined) out.bio = p.bio;
+      if (p.sourceType !== undefined) out.source_type = p.sourceType;
+      if (p.photoUrl !== undefined) out.photo_url = p.photoUrl;
+      if (p.photoPath !== undefined) out.photo_path = p.photoPath;
+      if (p.order !== undefined) out.order = p.order;
+      if (p.visible !== undefined) out.visible = !!p.visible;
+      return out;
+    };
+    if (path === "/api/personnel" && method === "GET") {
+      const rows = await connSelect(conn, "personnel").catch(() => []);
+      return ok((rows || []).map(mapPersonnel));
+    }
+    if (path === "/api/personnel" && method === "POST") {
+      const input = { ...mapPersonnelInput(body || {}), created_at: new Date().toISOString() };
+      const rows = await connInsertReturning(conn, "personnel", [input]);
+      return ok(mapPersonnel(rows?.[0] || input));
+    }
+    const persMatch = path.match(/^\/api\/personnel\/([^/]+)$/);
+    if (persMatch) {
+      const id = persMatch[1];
+      if (method === "PUT") {
+        const input = mapPersonnelInput(body || {});
+        const rows = await connUpdate(conn, "personnel", `id=eq.${id}`, input);
+        return ok(mapPersonnel(rows?.[0] || { id, ...input }));
+      }
+      if (method === "DELETE") {
+        await connDeleteById(conn, "personnel", id);
+        return ok();
+      }
+    }
+    if (path === "/api/personnel/reorder" && method === "POST") {
+      const items: { id: string; order: number }[] = body?.items || [];
+      await runWithConcurrency(items, (it) =>
+        connUpdate(conn, "personnel", `id=eq.${it.id}`, { order: it.order }),
+      );
+      return ok();
+    }
+
     // ===== REORDER =====
     if (path === "/api/groups/reorder" && method === "POST") {
       const items: { id: string; order: number }[] = body?.items || [];
@@ -940,7 +1045,9 @@ export async function firebaseApiFetch(
       path === '/api/logs' ||
       path === '/api/events' ||
       path === '/api/galleryCategories' ||
-      path === '/api/galleryItems');
+      path === '/api/galleryItems' ||
+      path === '/api/sejarahContent' ||
+      path === '/api/personnel');
   const cacheScope = isCacheableRead ? `read::${url}` : null;
 
   const finalize = async (res: Response) => {
