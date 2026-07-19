@@ -152,3 +152,39 @@ export interface Student {
   previousRank?: number;
   createdAt?: string;
 }
+
+/**
+ * Editorial section shown on the public "Sejarah" tab.
+ * Rows are keyed by `key` (e.g. "sejarah", "visi") — one document per section.
+ * `misi` items live inside the "visi" row's `misi` array so the whole
+ * Visi & Misi block edits atomically.
+ */
+export interface SejarahSection {
+  id: string;
+  key: string; // "sejarah" | "visi"
+  title: string;
+  body: string;
+  imageUrl?: string;
+  imagePath?: string;
+  visible: boolean;
+  misi?: { num: string; title: string; desc: string }[];
+  updatedAt?: string;
+}
+
+/**
+ * Personnel entry displayed on the public "Sejarah" tab.
+ * `kind` splits the list into Masyayikh (with photo card) and Pengurus (row).
+ */
+export interface Personnel {
+  id: string;
+  kind: "masyayikh" | "pengurus";
+  name: string;
+  role?: string;
+  bio?: string;
+  sourceType?: "drive" | "upload";
+  photoUrl?: string;
+  photoPath?: string;
+  order: number;
+  visible: boolean;
+  createdAt?: string;
+}
