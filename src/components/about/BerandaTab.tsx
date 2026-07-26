@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { Post, Student } from "@/lib/types";
+import type { Post, Student, GalleryCategory, GalleryItem } from "@/lib/types";
+import { resolveImageUrl } from "@/lib/gdrive";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -216,13 +217,35 @@ export default function DashboardTab({
     },
   ];
 
-  const galleryItems = [
-    { src: null, tag: "Kajian", title: "Khidmah Kitab Turats" },
-    { src: null, tag: "Santri", title: "Sema'an Al-Qur'an Akbar" },
-    { src: null, tag: "Kompleks", title: "Suasana Malam Manbaul Huda" },
-    { src: null, tag: "Sains", title: "Inovasi Coding Santri" },
-    { src: null, tag: "Kemandirian", title: "Agrobisnis & Lifeskill" },
-  ];
+  // Galeri Pesantren — live data, shared with the admin Gallery manager
+  // (same endpoints as the public "Galeri" tab).
+  const { data: galleryCats = [] } = useQuery<GalleryCategory[]>({
+    queryKey: ["galleryCategories"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/galleryCategories");
+      if (!res.ok) return [];
+      const rows: GalleryCategory[] = await res.json();
+      return [...rows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    },
+  });
+  const { data: galleryRows = [] } = useQuery<GalleryItem[]>({
+    queryKey: ["galleryItems"],
+    queryFn: async () => {
+      const res = await apiFetch("/api/galleryItems");
+      if (!res.ok) return [];
+      const rows: GalleryItem[] = await res.json();
+      return [...rows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    },
+  });
+
+  const galleryItems = useMemo(() => {
+    const catName = new Map(galleryCats.map((c) => [c.id, c.tag || c.name]));
+    return galleryRows.slice(0, 12).map((it) => ({
+      src: it.imageUrl ? resolveImageUrl(it.imageUrl) : null,
+      tag: catName.get(it.categoryId) || "Galeri",
+      title: it.title || "Tanpa Judul",
+    }));
+  }, [galleryRows, galleryCats]);
 
   const faqs = [
     {
@@ -366,6 +389,11 @@ export default function DashboardTab({
           </h2>
         </div>
 
+        {galleryItems.length === 0 ? (
+          <p className="text-muted-foreground text-sm italic py-2">
+            Belum ada foto galeri.
+          </p>
+        ) : (
         <div ref={galleryRef}>
           <Carousel
             opts={{ align: "start", loop: true, dragFree: true }}
@@ -400,6 +428,7 @@ export default function DashboardTab({
             </CarouselContent>
           </Carousel>
         </div>
+        )}
       </section>
 
       {/* 5. FAQ Section */}

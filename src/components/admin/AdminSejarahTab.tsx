@@ -129,35 +129,52 @@ function VisibilityToggle({
 }
 
 // ---------- Section editor (sejarah + visi) ----------
+// Self-contained: loads and refreshes ONLY its own row so saving one block
+// never resets unsaved edits in the other blocks on this page.
 function SectionEditor({
-  initial,
   keyName,
   fallbackTitle,
   withMisi,
-  onSaved,
 }: {
-  initial: SejarahSection | null;
   keyName: string;
   fallbackTitle: string;
   withMisi?: boolean;
-  onSaved: () => void;
 }) {
-  const [title, setTitle] = useState(initial?.title || fallbackTitle);
-  const [body, setBody] = useState(initial?.body || "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl || "");
-  const [imagePath, setImagePath] = useState(initial?.imagePath || "");
-  const [visible, setVisible] = useState(initial?.visible ?? true);
-  const [misi, setMisi] = useState(initial?.misi || []);
+  const [row, setRow] = useState<SejarahSection | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState(fallbackTitle);
+  const [body, setBody] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imagePath, setImagePath] = useState("");
+  const [visible, setVisible] = useState(true);
+  const [misi, setMisi] = useState<
+    { num: string; title: string; desc: string }[]
+  >([]);
   const [saving, setSaving] = useState(false);
 
+  const hydrate = (s: SejarahSection | null) => {
+    setRow(s);
+    setTitle(s?.title || fallbackTitle);
+    setBody(s?.body || "");
+    setImageUrl(s?.imageUrl || "");
+    setImagePath(s?.imagePath || "");
+    setVisible(s?.visible ?? true);
+    setMisi(s?.misi || []);
+  };
+
   useEffect(() => {
-    setTitle(initial?.title || fallbackTitle);
-    setBody(initial?.body || "");
-    setImageUrl(initial?.imageUrl || "");
-    setImagePath(initial?.imagePath || "");
-    setVisible(initial?.visible ?? true);
-    setMisi(initial?.misi || []);
-  }, [initial, fallbackTitle]);
+    let alive = true;
+    (async () => {
+      const all = await listSections();
+      if (!alive) return;
+      hydrate(all.find((s) => s.key === keyName) || null);
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyName]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -166,8 +183,8 @@ function SectionEditor({
     }
     setSaving(true);
     try {
-      await upsertSection({
-        id: initial?.id,
+      const saved = await upsertSection({
+        id: row?.id || keyName,
         key: keyName,
         title: title.trim(),
         body: body,
@@ -176,8 +193,9 @@ function SectionEditor({
         visible,
         misi: withMisi ? misi : undefined,
       });
+      // Only this block's snapshot is updated — no page-wide refresh.
+      setRow((prev) => ({ ...(prev as any), ...(saved || {}) }));
       toast.success("Bagian tersimpan");
-      onSaved();
     } catch (e: any) {
       toast.error(e.message || "Gagal menyimpan");
     } finally {
@@ -198,7 +216,12 @@ function SectionEditor({
   return (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="font-bold text-base sm:text-lg">{fallbackTitle}</h3>
+        <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
+          {fallbackTitle}
+          {loading && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+          )}
+        </h3>
         <VisibilityToggle visible={visible} onChange={setVisible} />
       </div>
 
@@ -303,7 +326,7 @@ function SectionEditor({
       <div className="flex justify-end pt-2">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || loading}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60"
         >
           {saving ? (
@@ -501,23 +524,40 @@ function PersonnelForm({
 }
 
 // ---------- Personnel list per kind ----------
+// Owns its own data + refresh so CRUD here only re-renders this card.
 function PersonnelSection({
   kind,
   title,
   icon: Icon,
-  personnel,
-  onRefresh,
 }: {
   kind: "masyayikh" | "pengurus";
   title: string;
   icon: React.ComponentType<{ className?: string }>;
-  personnel: Personnel[];
-  onRefresh: () => void;
 }) {
   const [form, setForm] = useState<
     (Partial<Personnel> & { kind: "masyayikh" | "pengurus" }) | null
   >(null);
-  const list = personnel.filter((p) => p.kind === kind);
+  const [list, setList] = useState<Personnel[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const onRefresh = React.useCallback(async () => {
+    const all = await listPersonnel();
+    setList(all.filter((p) => p.kind === kind));
+    setLoading(false);
+  }, [kind]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const all = await listPersonnel();
+      if (!alive) return;
+      setList(all.filter((p) => p.kind === kind));
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [kind]);
 
   const move = async (idx: number, dir: -1 | 1) => {
     const target = idx + dir;
@@ -556,7 +596,7 @@ function PersonnelSection({
           </div>
           <h3 className="font-bold text-base sm:text-lg">{title}</h3>
           <span className="text-xs text-muted-foreground">
-            ({list.length})
+            {loading ? "…" : `(${list.length})`}
           </span>
         </div>
         <button
@@ -658,37 +698,9 @@ function PersonnelSection({
 }
 
 // ---------- Main tab ----------
+// Each child card loads and refreshes its own data — no page-level loading
+// state, so saving one card never discards unsaved edits in another.
 export function AdminSejarahTab() {
-  const [sections, setSections] = useState<SejarahSection[]>([]);
-  const [personnel, setPersonnel] = useState<Personnel[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const [s, p] = await Promise.all([listSections(), listPersonnel()]);
-      setSections(s);
-      setPersonnel(p);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  const sejarah = sections.find((s) => s.key === "sejarah") || null;
-  const visi = sections.find((s) => s.key === "visi") || null;
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center text-muted-foreground text-sm">
-        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat data…
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-start gap-3">
@@ -704,32 +716,20 @@ export function AdminSejarahTab() {
       </div>
 
       <SectionEditor
-        initial={sejarah}
         keyName="sejarah"
         fallbackTitle="Sejarah Berdirinya Lembaga"
-        onSaved={refresh}
       />
-      <SectionEditor
-        initial={visi}
-        keyName="visi"
-        fallbackTitle="Visi & Misi"
-        withMisi
-        onSaved={refresh}
-      />
+      <SectionEditor keyName="visi" fallbackTitle="Visi & Misi" withMisi />
 
       <PersonnelSection
         kind="masyayikh"
         title="Dewan Masyayikh & Pimpinan"
         icon={BookOpen}
-        personnel={personnel}
-        onRefresh={refresh}
       />
       <PersonnelSection
         kind="pengurus"
         title="Struktur Kepengurusan"
         icon={UsersIcon}
-        personnel={personnel}
-        onRefresh={refresh}
       />
     </div>
   );
