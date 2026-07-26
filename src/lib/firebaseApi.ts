@@ -694,7 +694,17 @@ async function runRouter(url: string, init: RequestInit, conn: any): Promise<Res
     };
     if (path === "/api/sejarahContent" && method === "GET") {
       const rows = await connSelect(conn, "sejarah_content").catch(() => []);
-      return ok((rows || []).map(mapSejarah));
+      // Legacy rows may exist with auto-ids for the same `key`; keep only the
+      // most recently updated row per key so the editor edits one canonical doc.
+      const mapped = (rows || []).map(mapSejarah);
+      const byKey = new Map<string, any>();
+      for (const r of mapped) {
+        const prev = byKey.get(r.key);
+        if (!prev || String(r.updatedAt || "") > String(prev.updatedAt || "")) {
+          byKey.set(r.key, r);
+        }
+      }
+      return ok(Array.from(byKey.values()));
     }
     if (path === "/api/sejarahContent" && method === "POST") {
       const input = { ...mapSejarahInput(body || {}) };

@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import type { Post, Student } from "@/lib/types";
+import type { Post, Student, GalleryCategory, GalleryItem } from "@/lib/types";
+import { resolveImageUrl } from "@/lib/gdrive";
 import Link from "next/link";
 import {
   ArrowRight,
