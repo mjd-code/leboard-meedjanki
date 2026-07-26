@@ -389,6 +389,11 @@ export default function DashboardTab({
           </h2>
         </div>
 
+        {galleryItems.length === 0 ? (
+          <p className="text-muted-foreground text-sm italic py-2">
+            Belum ada foto galeri.
+          </p>
+        ) : (
         <div ref={galleryRef}>
           <Carousel
             opts={{ align: "start", loop: true, dragFree: true }}
@@ -423,6 +428,7 @@ export default function DashboardTab({
             </CarouselContent>
           </Carousel>
         </div>
+        )}
       </section>
 
       {/* 5. FAQ Section */}
