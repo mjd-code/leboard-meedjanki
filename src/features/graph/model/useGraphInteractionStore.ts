@@ -86,7 +86,12 @@ export const useGraphInteractionStore = create<GraphInteractionState>()(
       }),
       migrate: (persisted) => {
         const state = (persisted ?? {}) as Partial<GraphInteractionState>;
-        return { ...state, layoutMode: normalizeLayoutMode(state.layoutMode) };
+        return {
+          layoutMode: normalizeLayoutMode(state.layoutMode),
+          orientation: state.orientation ?? 'balanced',
+          highlightMode: state.highlightMode ?? 'pathway',
+          collapsedIds: state.collapsedIds ?? [],
+        };
       },
     }
   )
