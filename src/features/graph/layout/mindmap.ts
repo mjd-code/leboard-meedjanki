@@ -65,8 +65,7 @@ function layoutBalanced(
   const placeBranch = (id: string, side: -1 | 1, parentX: number, top: number) => {
     const span = spanOf(id);
     const centerY = top + span / 2;
-    const parentWidth = parentX === 0 && side !== 0 ? metric(id).width : metric(id).width;
-    const x = parentX + side * (parentWidth / 2 + levelGap);
+    const x = parentX + side * (metric(id).width / 2 + levelGap);
     targets.set(id, { x, y: centerY, side });
 
     let cursor = top;
