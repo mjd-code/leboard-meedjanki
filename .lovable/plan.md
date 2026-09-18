@@ -1,264 +1,238 @@
-# Implementation Plan — Smart Import, Image Pipeline, Idempotent Goal Assignment
+# PLAN.md — Obsidian-grade Knowledge Base: Architecture Blueprint
 
-> Scope: three changes against the existing Firebase / Firestore + React (Next.js) app.
-> No code is being written yet — this document is the contract to approve.
+On approval this document is written to `PLAN.md` at the project root and Phase 1 begins.
 
----
+## 1. Executive Summary & GAP Analysis
 
-## 0. Architecture Overview
+Current state (verified): 154 source files, ~25.7K lines. Vite + React 18 + TS + Tailwind/shadcn + Zustand (6 stores) + Lovable Cloud. Graph rendering via `react-force-graph-2d` (Canvas, D3-force under the hood). Markdown editing is a plain `<Textarea>` inside `NodePanel.tsx` with `react-markdown` for display. No CodeMirror, no metadata cache, no workspace model.
 
-The app already uses:
+Identified smells and risks:
 
-- **Firestore collections**: `students`, `master_goals`, `categories`, `groups`, plus `posts`, `student_achievements`, etc.
-- **Admin surfaces**: `src/components/AdminImportExportTab.tsx` (CSV/JSON import-export), `src/components/admin/AdminStudentsTab.tsx` (assign goals), `src/components/ui/ImageUploader.tsx` + `src/lib/uploadImage.ts` (image pipeline — currently Base64 only).
-- **Data layer**: `src/lib/firebaseApi.ts` and `src/hooks/useAppQueries.ts` (React Query + Firestore).
+| Area | Finding | Evidence |
+|---|---|---|
+| Monoliths | 5 files over 550 lines mixing UI + logic | `NetworkGraph.tsx` 860, `NodePanel.tsx` 760, `ImportExportService.ts` 735, `VaultManager.ts` 597, `Index.tsx` 553 (45 hook calls) |
+| Duplicates | Two toast hooks; two Supabase client + types dirs | `components/ui/use-toast.ts` + `components/core/ui/use-toast.ts` -> `core/hooks/useToast.ts`; `src/integrations/supabase/*` and `src/services/integrations/supabase/*` (3 services import the non-canonical copy) |
+| Dead DI | `container.ts` defines 13 `ServiceIds` but zero `register`/`resolve` calls exist; `plugin-registry.ts` (378 lines) has no consumer outside `services/core` | grep results |
+| God object | `VaultManager` owns vault CRUD, undo/redo, graph config, backups, auto-backup timers, cloud ids | 30 public methods |
+| Parser duplication | `content-parser.ts` and `markdown-parser.ts` both export `ParsedContent`; regex-based, no incremental parsing | `services/content/*` |
+| Store shape | `useGraphStore` (464 lines) holds config + stats + actions in one flat object; consumers select whole objects, causing re-render storms | store files |
+| Layout | `UnifiedLayout` + `DesktopLayout` + `MobileLayout` + `WorkspaceTabs` implement a single-pane tab strip with prop drilling (20+ props); no split/leaf model | `layout/*` |
+| Loops | Bidirectional sync selectedNode <-> activeTab in `UnifiedLayout` guarded by a ref (fragile) | `UnifiedLayout.tsx` L106-142 |
+| Stale FSD | `.cursor/plans` migration was never applied; `src/features` does not exist | filesystem |
 
-The three tasks slot in without changing the public data shape consumed by the UI:
+Refactoring priorities: (1) kill duplicates and wire DI, (2) split god objects into Vault/MetadataCache/FileManager, (3) replace Textarea with CodeMirror 6, (4) formal Workspace model, (5) graph scale-up.
 
-```text
- ┌──────────────┐    CSV/JSON      ┌────────────────────┐   batched upserts   ┌────────────┐
- │  Admin UI    │ ───────────────▶ │  Import Planner    │ ──────────────────▶ │ Firestore  │
- │ (Import tab) │  diff + dry-run  │ (pure, testable)   │  writeBatch(merge)  │ collections│
- └──────────────┘                  └────────────────────┘                     └────────────┘
-
- ┌──────────────┐  File → Canvas → WebP   ┌──────────────────┐  putFile   ┌──────────────┐
- │ ImageUploader│ ──────────────────────▶ │ uploadImage.ts   │ ─────────▶ │ Firebase     │
- │ (cropper)    │                         │ (Storage client) │   URL      │ Storage      │
- └──────────────┘                         └──────────────────┘            └──────────────┘
-                                                   │
-                                                   ▼
-                                         students/{id}.photo = URL
-
- ┌──────────────┐  click "Assign All"   ┌──────────────────────┐  arrayUnion / setDoc(merge)
- │ AdminStudents│ ────────────────────▶ │ assignGoalsIdempotent │ ──────────────────────────▶ Firestore
- └──────────────┘                       └──────────────────────┘
-```
-
-No new collections are required. One new Storage bucket path (`students/{id}/avatar.webp`) and one optional `migrations` log doc.
-
----
-
-## 1. Database / Schema Adjustments
-
-Minimal — all changes are additive and backwards compatible.
-
-| Collection      | Field            | Change                                                                                        |
-| --------------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `students`      | `photo`          | Semantics change: now a Firebase Storage URL (https://…) instead of `data:image/...;base64`. Legacy Base64 values continue to render. |
-| `students`      | `photoPath`      | **NEW (optional)** — Storage object path (e.g. `students/abc123/avatar-1733600000.webp`) used for cleanup on replace. |
-| `students`      | `assignedGoals`  | Invariant: array of `AssignedGoal` with **unique `goalId`**. Enforced in code (Firestore can't enforce it). |
-| `master_goals`  | `id`             | Continue to be the canonical merge key for import.                                            |
-| `categories`    | `id`             | Merge key.                                                                                    |
-| `groups`        | `id`             | Merge key.                                                                                    |
-| `migrations`    | `{name, ranAt, stats}` | **NEW (optional)** — one doc per healing run so we don't repeat the dedupe.            |
-
-Firestore Rules: extend `students` rule to allow `photoPath` writes from admins; add `storage.rules` for `students/{uid}/**` (admin write, public read).
-
----
-
-## 2. Task 1 — Smart Data Import & Synchronization (Idempotent Merge)
-
-### 2.1 Goals
-- Round-trip safe: Export → edit in Excel → Re-import.
-- Never delete. Never overwrite fields the CSV doesn't carry.
-- Show a dry-run diff before commit.
-
-### 2.2 Module layout
-New file: `src/lib/import/planImport.ts` — pure, unit-testable.
-
-```ts
-type Mode = "students" | "master_goals" | "categories" | "groups";
-
-interface ImportPlan<T> {
-  toCreate: T[];                 // no id, or id not found
-  toUpdate: { id: string; before: T; after: T; changedFields: string[] }[];
-  unchanged: number;
-  invalid: { row: number; reason: string }[];
-}
-
-function planImport<T>(mode: Mode, incoming: any[], existing: T[]): ImportPlan<T>
-```
-
-- Validates each row with a **Zod schema per mode** (`studentRowSchema`, `goalRowSchema`, …).
-- Compares by `id`. Missing/blank `id` → `toCreate` (a new `crypto.randomUUID()` is assigned at commit time).
-- For updates: computes `changedFields` via shallow diff after coercing types. Only changed fields are written.
-- Relationship integrity:
-  - `master_goals.categoryId` must exist in `categories` (current or incoming). If not, row is moved to `invalid`.
-  - `categories.groupId` must exist in `groups`.
-  - `students.assignedGoals[].goalId` must exist in `master_goals`. Missing references → row marked invalid (never silently dropped).
-
-### 2.3 Commit (writer)
-New file: `src/lib/import/commitImport.ts`
-
-- Uses `writeBatch` in chunks of 450 ops.
-- `setDoc(ref, partial, { merge: true })` for both create and update (true upsert). Never `deleteDoc`.
-- Wraps each chunk in try/catch; on failure, surfaces the failed chunk index so the user can retry without re-running the whole import.
-- Writes a summary toast: `"Updated 5, Created 2, Skipped 13 unchanged"`.
-
-### 2.4 UI changes — `AdminImportExportTab.tsx`
-- Add an **"Analyze"** step: parse file → call `planImport` → show a modal:
+## 2. Target System Architecture
 
 ```text
-┌─ Import preview ──────────────────────────────┐
-│ Students                                       │
-│   + 2 new       (Ahmad, Bilal)                 │
-│   ~ 5 updated   (3 photo, 2 bio, …)            │
-│   = 174 unchanged                              │
-│   ! 1 invalid   (row 88: groupId not found)    │
-│                                                │
-│ [ Cancel ]                       [ Commit ]    │
-└────────────────────────────────────────────────┘
++--------------------+     +---------------------+     +----------------------+
+|   Storage Adapters |     |     Vault Core      |     |    MetadataCache     |
+| FileSystemAdapter  |<--->| Vault (TFile/TFolder|---->| links/backlinks/tags |
+| IndexedDBAdapter   |     |  read/modify/rename)|     | frontmatter/headings |
+| CloudAdapter(Supa) |     +----------+----------+     | (Web Worker parser)  |
++--------------------+                |                +----------+-----------+
+        ^                             | emits                     | resolves
+        | SyncEngine                  v                           v
++-------+-----------+       +---------+----------+     +----------+-----------+
+| BackgroundSync    |       |      EventBus      |<----|     FileManager      |
+| conflict/backups  |       | typed domain events|     | rename + link refac  |
++-------------------+       +---------+----------+     +----------------------+
+                                      |
+              +-----------------------+-----------------------+
+              v                       v                       v
+      +---------------+      +----------------+      +-----------------+
+      | Editor Engine |      |  Graph Engine  |      |  Command/Suggest|
+      | CM6 + Lezer   |      | worker d3-force|      | palette, [[ # . |
+      | MarkdownView  |      | Pixi/Canvas    |      +-----------------+
+      +-------+-------+      +-------+--------+
+              \                      /
+               v                    v
+          +----------------------------------+
+          |  Workspace (root) -> Split -> Leaf|
+          |  Ribbon | Leaves | StatusBar      |
+          +----------------------------------+
 ```
 
-- "Commit" is disabled while `invalid.length > 0` unless the admin toggles "ignore invalid rows".
-- Existing CSV export already includes `id` for every row, so a round-trip is naturally idempotent.
-
----
-
-## 3. Task 2 — Optimized Photo & Image Management
-
-### 3.1 Pipeline
-Replace the Base64 path in `src/lib/uploadImage.ts` and `src/components/ui/ImageUploader.tsx`:
+## 3. Target File & Folder Blueprint
 
 ```text
-File ─▶ Cropper (existing) ─▶ Canvas resize (max 800px long edge)
-      ─▶ canvas.toBlob('image/webp', 0.82)
-      ─▶ uploadBytesResumable(ref, blob, { contentType: 'image/webp', cacheControl: 'public,max-age=31536000,immutable' })
-      ─▶ getDownloadURL  ──▶ { url, path }
+src/
+  app/                      App.tsx, routes.tsx, providers.tsx, bootstrap.ts (DI wiring)
+  shared/
+    ui/                     shadcn primitives (single copy)
+    lib/                    cn, color-utils, fuzzy.ts, debounce
+    hooks/                  useToast (ONLY copy), useMobile
+    events/                 event-bus.ts, event-types.ts
+    di/                     container.ts, service-ids.ts
+    integrations/supabase/  re-exports @/integrations/supabase/client (auto-gen stays put)
+  core/
+    vault/                  Vault.ts, TFile.ts, adapters/{FileSystem,IndexedDB,Cloud}Adapter.ts
+    metadata/               MetadataCache.ts, parser.worker.ts, LinkResolver.ts
+    file-manager/           FileManager.ts (rename + wikilink refactor + orphans)
+    history/                VaultHistory.ts (from VaultManager)
+    backup/                 BackupService.ts (from VaultManager)
+    sync/                   SyncEngine.ts, BackgroundSyncService.ts
+    commands/               CommandRegistry.ts
+    plugins/                PluginRegistry.ts, Feature.ts
+  features/
+    editor/                 MarkdownView.tsx, cm/{state,extensions,decorations,suggest}/, frontmatter/, toolbar/
+    workspace/              Workspace.ts (store), WorkspaceRoot.tsx, Leaf.tsx, Split.tsx, Ribbon.tsx, StatusBar.tsx
+    graph/                  GraphView.tsx, engine/{ForceWorker.ts,Renderer.ts}, config-panel/, store/
+    backlinks/              BacklinksView.tsx, UnlinkedMentions.tsx
+    command-palette/        CommandPalette.tsx (cmdk)
+    vault-dashboard/        pages + cards + mode selector
+    auth/  profile/  import-export/  pwa/
+  pages/                    thin route wrappers only
 ```
 
-Quality target: ~50–120 KB for avatars (100–400px), ~150–300 KB for cover images (≤1200px).
+Moves (examples): `services/vault/VaultManager.ts` -> split into `core/vault/Vault.ts`, `core/history/`, `core/backup/`; `components/graph/NodePanel.tsx` -> `features/editor/MarkdownView.tsx` + `features/editor/frontmatter/PropertiesPanel.tsx`; `components/core/layout/*` -> `features/workspace/*`; `services/content/*` -> `core/metadata/`; `services/ui/stores/*` -> co-located `store/` per feature. Delete: `components/ui/use-toast.ts`, `services/integrations/supabase/*`, `services/core/features.ts` (fold into `core/plugins`).
 
-### 3.2 New / changed files
-- `src/lib/storage.ts` (new) — thin wrapper around Firebase Storage: `uploadWebp(file, folder, ownerId)`, `deleteByPath(path)`.
-- `src/lib/uploadImage.ts` — rewrite `uploadImageWithCompression` to:
-  1. Convert to WebP blob with the canvas pipeline above.
-  2. Upload to Storage at `${folder}/${ownerId ?? 'misc'}/${uuid}.webp`.
-  3. Return `{ url, path }` (caller persists both).
-- `ImageUploader.tsx` — `onUploadSuccess` becomes `(payload: { url: string; path: string }) => void`. Old `(url)` callers get a small shim during the transition.
-- Consumers (`AdminStudentsTab`, `AdminBlogTab`, `AdminUserManagement`, `TiptapEditor`) — persist `photoPath` alongside `photo`.
+## 4. Phased Roadmap
 
-### 3.3 Cleanup on replace
-When saving a student/admin/post:
+### Phase 1 — Core Architecture & Vault Cleanup
+Tasks
+- Create `shared/`, `core/`, `features/`, `app/`; move files with import rewrites (`@/shared/*`, `@/core/*`, `@/features/*` aliases in tsconfig + vite).
+- Delete duplicate toast hook and duplicate Supabase dir; all services import `@/integrations/supabase/client`.
+- Wire DI: `app/bootstrap.ts` registers Vault, MetadataCache, FileManager, SyncEngine, CommandRegistry, EventBus in `container`; React reads via `useService(id)` hook.
+- Split `VaultManager` into `Vault` (CRUD + adapters), `VaultHistory`, `BackupService`; expose `VaultRegistry` for multi-vault switching.
+- Slice stores: `useGraphStore` -> `nodeStyleSlice`, `linkStyleSlice`, `forceSlice`, `statsSlice` combined with `create()(...)`; add `useShallow` selectors; add `subscribeWithSelector` for service-side listeners.
+- Remove selectedNode<->tab loop by making `Workspace` the single source of truth (Phase 3 completes this; Phase 1 removes the ref hack by deriving selection from active leaf).
+Files affected: all of `services/*`, `components/core/*`, `pages/*`, `App.tsx`, `tsconfig.*`, `vite.config.ts`.
+Acceptance: build + typecheck green; zero imports from deleted paths; `container.getRegisteredServices().length >= 6`; no "Maximum update depth" in console across /app, /vaults, /profile.
+
+### Phase 2 — CodeMirror 6 Editor Engine
+Tasks
+- Add deps: `@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/lang-markdown`, `@codemirror/autocomplete`, `@codemirror/commands`, `@codemirror/search`, `@lezer/markdown`, `@lezer/highlight`, `yaml`, `katex`, `mermaid`.
+- `features/editor/cm/state/`: `createEditorState(doc, extensions)`, `EditorApi` (getSelection, replaceRange, posToOffset, getLine).
+- `features/editor/cm/extensions/`: `livePreview.ts` (ViewPlugin that hides syntax marks outside the cursor line via Decoration.replace + Widget for checkboxes/images/embeds), `frontmatterField.ts` (StateField parsing YAML block, exposes typed properties), `wordCountField.ts`, `wikilinkField.ts` (emits link-trigger events), `callouts.ts`, `mathBlocks.ts` (KaTeX widget), `tables.ts`.
+- `MarkdownView.tsx`: mode switcher `source | live | reading`; reading mode renders via `MarkdownPostProcessor` pipeline (AST -> DOM: mermaid, katex, tables, wikilinks). Reuses `react-markdown` only in reading mode until pipeline replaces it.
+- `features/editor/suggest/`: `EditorSuggest` abstract + `WikilinkSuggest` (`[[`), `TagSuggest` (`#`), `PropertySuggest` (`.` in frontmatter); fuzzy index from `MetadataCache` with ranking = fuzzy score + recency boost + link-distance boost.
+- Toolbar + context menu commands: headings 1-6, bold/italic/strike/highlight, lists/task list, blockquote, callout, table, hr, code block, `$..$` / `$$..$$`, footnote, internal link.
+- `features/editor/frontmatter/PropertiesPanel.tsx`: typed inputs (text, number, date, tags multi-select, checkbox) writing back through `EditorApi`.
+- Command palette (`Ctrl/Cmd+P`) via `cmdk` backed by `CommandRegistry`.
+Files affected: replace editor portion of `NodePanel.tsx`; new `features/editor/**`; `core/commands/`.
+Acceptance: typing 50K-char note stays under 16ms/keystroke (Performance panel); toggling live/reading keeps cursor; `[[` shows ranked suggestions under 50ms; frontmatter edits round-trip without reformatting body; all toolbar commands have palette entries.
+
+### Phase 3 — Workspace & Layout System
+Tasks
+- `features/workspace/Workspace.ts` Zustand store: tree of `WorkspaceSplit { direction, children, sizes }` and `WorkspaceLeaf { id, viewType, state, pinned }`; actions `openFile`, `splitLeaf`, `closeLeaf`, `setActiveLeaf`, `moveLeaf`, `serialize/deserialize` (persist per vault).
+- `ViewRegistry`: maps `viewType` -> lazy component (`markdown`, `graph`, `backlinks`, `settings`, `empty`).
+- `Split.tsx` on `react-resizable-panels`; `Leaf.tsx` with tab strip, drag-to-reorder and drag-to-split (dnd-kit); `Ribbon.tsx` (vault switcher, graph toggle, quick actions, plugin-contributed icons); `StatusBar.tsx` (word count from editor StateField, sync state from `useOfflineStore`/SyncEngine, active file path, PWA offline badge).
+- Mobile: same tree, rendered as stacked leaves with a drawer ribbon.
+- Delete `UnifiedLayout`, `DesktopLayout`, `MobileLayout`, `WorkspaceTabs`, `WorkspacePane`.
+Files affected: `components/core/layout/**` (removed), `pages/Index.tsx` (becomes `<WorkspaceRoot/>`), `IconRibbon.tsx`.
+Acceptance: split horizontally/vertically, drag tabs across leaves, layout survives reload per vault, no prop drilling deeper than 2 levels, `Index.tsx` under 80 lines.
+
+### Phase 4 — MetadataCache, FileManager & Graph Synchronization
+Tasks
+- `core/metadata/MetadataCache.ts`: maps `fileCache: Map<path, CachedMetadata>`, `resolvedLinks`, `unresolvedLinks`, `backlinks`, `tags`, `headings`; incremental update on `NODE_UPDATED`; parsing in `parser.worker.ts` (Lezer markdown + yaml) with Comlink; debounced 150ms; full reindex on vault open in chunks of 200 files.
+- `core/file-manager/FileManager.ts`: `renameFile` rewrites `[[old]]`, `[[old|alias]]`, `[[old#heading]]` across affected files in one transaction with undo entry; `getOrphans()`; `trashFile` with backlink warning.
+- Graph engine: move force simulation into `ForceWorker.ts` (d3-force in Web Worker, transferable Float32Array positions); renderer switches Canvas -> Pixi.js (`pixi.js` + `@pixi/graphics`) when nodeCount > 2000; LOD: labels hidden below zoom 0.6, edges culled outside viewport; quadtree hit testing. Graph data derived from `MetadataCache.resolvedLinks` instead of re-parsing.
+- `features/backlinks/`: backlinks from cache; `UnlinkedMentions` scans note bodies with Aho-Corasick over all titles/aliases (in worker), "Link" button rewrites text via `EditorApi`.
+Files affected: `services/content/*` (removed), `services/graph/*`, `NetworkGraph.tsx` (split into `GraphView` + `engine/`), `BacklinksPanel.tsx`, `DynamicLinkManager.tsx`, `useAutoLinks.tsx`.
+Acceptance: 10,000 synthetic notes index under 3s, graph at 10K nodes holds 45+ fps during drag, rename updates all backlinks with one undo step, unlinked mentions appear within 300ms of opening a note.
+
+### Phase 5 — Polish, PWA & Sync
+Tasks
+- `core/sync/SyncEngine.ts`: per-file dirty tracking, last-write-wins with server `updated_at` check, conflict copies (`name (conflict YYYY-MM-DD).md`), offline queue in IndexedDB replayed on reconnect; cloud schema stays `user_vaults`/`vault_backups`.
+- Service worker: precache app shell; runtime cache for vault JSON; background sync tag.
+- Settings view as workspace leaf; feature toggles via `PluginRegistry` persisted in localStorage; plugin lifecycle events on the bus.
+- Memory audits (see section 6); a11y pass on toolbar/palette; lint rule `import/no-restricted-paths` forbidding cross-feature imports except via `shared/` and `core/`.
+Acceptance: Lighthouse PWA installable, offline edit then reconnect syncs without loss, heap stable after opening/closing 200 leaves.
+
+## 5. Interface Definitions
+
 ```ts
-if (next.photoPath && next.photoPath !== prev.photoPath && prev.photoPath?.startsWith('students/')) {
-  await deleteByPath(prev.photoPath); // best-effort, swallow 404
+// core/vault
+export interface TFile { path: string; name: string; basename: string; extension: string; stat: { ctime: number; mtime: number; size: number }; parent: TFolder | null }
+export interface TFolder { path: string; name: string; children: (TFile | TFolder)[] }
+export interface StorageAdapter {
+  readonly kind: 'filesystem' | 'indexeddb' | 'cloud';
+  list(): Promise<TFile[]>; read(path: string): Promise<string>;
+  write(path: string, data: string): Promise<void>; delete(path: string): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
 }
-```
-Legacy Base64 `photo` values have no `photoPath` → cleanup is a no-op, safe to leave in place.
-
-### 3.4 Backwards compatibility
-`ImageWithFallback` already handles arbitrary URLs and `data:` strings. No reader changes needed.
-
-### 3.5 Storage rules (high level)
-```text
-match /students/{studentId}/{file=**} {
-  allow read: if true;
-  allow write: if request.auth != null && hasAdminClaim();
+export interface Vault {
+  readonly id: string; readonly adapter: StorageAdapter;
+  getFiles(): TFile[]; getAbstractFileByPath(p: string): TFile | TFolder | null;
+  read(f: TFile): Promise<string>; cachedRead(f: TFile): Promise<string>;
+  create(path: string, data: string): Promise<TFile>;
+  modify(f: TFile, data: string): Promise<void>;
+  process(f: TFile, fn: (data: string) => string): Promise<string>;
+  rename(f: TFile | TFolder, newPath: string): Promise<void>;
+  trash(f: TFile | TFolder): Promise<void>;
+  on(evt: 'create' | 'modify' | 'delete' | 'rename', cb: (f: TFile, oldPath?: string) => void): () => void;
 }
-```
 
----
-
-## 4. Task 3 — Fix "Assign All Goals" Duplication
-
-### 4.1 Root cause
-`AdminStudentsTab.tsx` currently does:
-
-```ts
-const newAssignedGoals = [...student.assignedGoals, ...allMasterGoals.map(g => ({ goalId: g.id, completed: false }))];
-```
-
-No dedupe → clicking twice = 2× entries (181 → 362; one student in prod shows 354 because some goals existed already).
-
-### 4.2 Fix — single source of truth helper
-New file: `src/lib/assignGoals.ts`
-
-```ts
-export function mergeAssignments(
-  existing: AssignedGoal[],
-  goalIdsToAdd: string[],
-): AssignedGoal[] {
-  const byId = new Map(existing.map(a => [a.goalId, a]));
-  for (const id of goalIdsToAdd) {
-    if (!byId.has(id)) byId.set(id, { goalId: id, completed: false });
-  }
-  return Array.from(byId.values());
+// core/metadata
+export interface Pos { line: number; col: number; offset: number }
+export interface LinkCache { link: string; original: string; displayText?: string; heading?: string; position: { start: Pos; end: Pos } }
+export interface HeadingCache { heading: string; level: 1|2|3|4|5|6; position: { start: Pos; end: Pos } }
+export interface CachedMetadata { links?: LinkCache[]; embeds?: LinkCache[]; tags?: { tag: string; position: { start: Pos; end: Pos } }[]; headings?: HeadingCache[]; frontmatter?: Record<string, unknown>; frontmatterPosition?: { start: Pos; end: Pos } }
+export interface MetadataCache {
+  getFileCache(f: TFile): CachedMetadata | null;
+  getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null;
+  resolvedLinks: Record<string, Record<string, number>>;
+  unresolvedLinks: Record<string, Record<string, number>>;
+  getBacklinks(f: TFile): Map<string, LinkCache[]>;
+  getTags(): Map<string, number>;
+  on(evt: 'changed' | 'resolved' | 'deleted', cb: (f: TFile, cache?: CachedMetadata) => void): () => void;
 }
+
+// core/file-manager
+export interface FileManager {
+  renameFile(f: TFile, newPath: string): Promise<{ updatedFiles: string[] }>;
+  getOrphans(): TFile[];
+  generateMarkdownLink(target: TFile, sourcePath: string, alias?: string): string;
+}
+
+// features/editor
+export interface EditorSuggestTriggerInfo { start: Pos; end: Pos; query: string }
+export interface EditorSuggestContext extends EditorSuggestTriggerInfo { editor: EditorApi; file: TFile }
+export abstract class EditorSuggest<T> {
+  abstract onTrigger(cursor: Pos, editor: EditorApi, file: TFile): EditorSuggestTriggerInfo | null;
+  abstract getSuggestions(ctx: EditorSuggestContext): T[] | Promise<T[]>;
+  abstract renderSuggestion(item: T): React.ReactNode;
+  abstract selectSuggestion(item: T, evt: KeyboardEvent | MouseEvent): void;
+}
+export type FrontmatterPropertyType = 'text' | 'number' | 'date' | 'datetime' | 'checkbox' | 'tags' | 'list';
+export interface FrontmatterProperty { key: string; type: FrontmatterPropertyType; value: unknown; position?: { start: Pos; end: Pos } }
+export interface EditorApi {
+  getValue(): string; setValue(v: string): void; getSelection(): string; replaceSelection(t: string): void;
+  replaceRange(t: string, from: Pos, to?: Pos): void; getCursor(): Pos; setCursor(p: Pos): void;
+  getLine(n: number): string; lineCount(): number; posToOffset(p: Pos): number; offsetToPos(o: number): Pos;
+  focus(): void; exec(cmd: string): boolean;
+}
+
+// features/workspace
+export type ViewType = 'markdown' | 'graph' | 'backlinks' | 'settings' | 'empty';
+export interface ViewState { type: ViewType; state: Record<string, unknown>; mode?: 'source' | 'live' | 'reading' }
+export interface WorkspaceLeaf { id: string; parentId: string; view: ViewState; pinned: boolean; history: ViewState[]; setViewState(v: ViewState): Promise<void>; openFile(f: TFile): Promise<void>; detach(): void }
+export interface WorkspaceSplit { id: string; direction: 'horizontal' | 'vertical'; children: (WorkspaceSplit | WorkspaceLeaf)[]; sizes: number[] }
+export interface Workspace {
+  root: WorkspaceSplit; activeLeafId: string | null;
+  getLeaf(mode: 'tab' | 'split' | 'window'): WorkspaceLeaf;
+  getLeavesOfType(t: ViewType): WorkspaceLeaf[];
+  splitActiveLeaf(dir: 'horizontal' | 'vertical'): WorkspaceLeaf;
+  getLayout(): unknown; changeLayout(l: unknown): Promise<void>;
+}
+
+// core/commands
+export interface Command { id: string; name: string; hotkeys?: string[]; icon?: string; checkCallback?: (checking: boolean) => boolean | void; editorCallback?: (editor: EditorApi, view: ViewState) => void }
 ```
 
-All call sites (Assign-All, Assign-by-Category, Assign-by-Group, single Assign) go through this. Writes use `updateDoc({ assignedGoals: merged })` — we can't use `arrayUnion` directly because elements are objects (Firestore equality is structural and would still duplicate `{goalId, completed:false}` if `completed` differs).
+## 6. Performance, Virtualization & Memory Strategy
 
-### 4.3 Mirror collection (`student_achievements`)
-If the achievement junction is also written on assign, use a deterministic doc id `${studentId}_${goalId}` with `setDoc(..., { merge: true })` so re-assigning is a no-op.
+- Editor: CM6 already virtualizes DOM by viewport; keep Decoration sets built via `RangeSetBuilder` limited to `view.visibleRanges`; expensive widgets (mermaid, katex) render lazily with `requestIdleCallback` and cache by content hash; one `EditorView` per leaf, destroyed in effect cleanup (`view.destroy()`), state kept in leaf `ViewState` so reopening restores scroll/cursor.
+- Parsing: all Lezer/YAML parsing for cache runs in a Web Worker (Comlink); main thread never parses more than the active document. Reindex in chunks of 200 with `await scheduler.yield()` fallback to `setTimeout(0)`.
+- Graph: simulation in worker, positions in `SharedArrayBuffer` when cross-origin isolated else transferable arrays; renderer redraws only on tick or camera change; label rendering behind zoom threshold; `simulation.stop()` and `app.destroy(true)` on unmount; dispose Pixi textures via a texture cache with LRU 500.
+- Stores: selectors with `useShallow`; services subscribe with `subscribeWithSelector` and unsubscribe on cleanup; no whole-store subscriptions in leaves.
+- Memory guards: `WeakMap` for per-file derived data; leaf close triggers `view.destroy()`, worker port close, and cache entry release; dev-only `EventDebugPanel` reports listener counts (already exists in `eventBus.getListenerCount()`).
+- Budgets: keystroke under 16ms, cache update under 50ms, graph tick under 12ms at 10K nodes, initial load under 2s on 3G fast for app shell (vault data streamed after).
 
-### 4.4 Data healing
-New file: `src/lib/migrations/dedupeAssignedGoals.ts`
+## Technical notes
 
-- Iterate all `students`.
-- For each, collapse `assignedGoals` by `goalId`, **preferring the completed entry** when duplicates exist (keeps points history).
-- Write back only if length changed.
-- Log `{studentId, before, after}` to a `migrations/dedupe-assigned-goals-<date>` doc.
-
-Exposed as a one-click button in `AdminDatabaseTab` ("Heal duplicate goal assignments"), gated behind a confirm modal and `super_admin` role.
-
----
-
-## 5. File Touch List
-
-| Path                                                | Action |
-| --------------------------------------------------- | ------ |
-| `src/lib/import/planImport.ts`                      | new    |
-| `src/lib/import/commitImport.ts`                    | new    |
-| `src/lib/import/schemas.ts`                         | new    |
-| `src/components/AdminImportExportTab.tsx`           | edit — wire Analyze/Commit modal |
-| `src/lib/storage.ts`                                | new    |
-| `src/lib/uploadImage.ts`                            | rewrite |
-| `src/components/ui/ImageUploader.tsx`               | edit — return `{url, path}` |
-| `src/components/admin/AdminStudentsTab.tsx`         | edit — use `mergeAssignments`, persist `photoPath` |
-| `src/components/admin/AdminBlogTab.tsx`             | edit — persist `photoPath` |
-| `src/components/admin/AdminUserManagement.tsx`      | edit — persist `photoPath` |
-| `src/lib/assignGoals.ts`                            | new    |
-| `src/lib/migrations/dedupeAssignedGoals.ts`         | new    |
-| `src/components/admin/AdminDatabaseTab.tsx`         | edit — Heal button |
-| `src/lib/types.ts`                                  | add `photoPath?: string` to `Student`, `AdminUser`, `Post` |
-| `firestore.rules` / `storage.rules`                 | edit — admin write for `students/**` storage path |
-
----
-
-## 6. Verification & Testing
-
-### Task 1 — Import
-1. Export `students` CSV. Re-import unchanged → modal must show `0 created, 0 updated, N unchanged`.
-2. Edit one cell in 3 rows → re-import → `0 created, 3 updated`. Confirm in Firestore that only those fields changed and `assignedGoals` is untouched.
-3. Add 2 new rows without `id` → `2 created`. Confirm they have fresh UUIDs.
-4. Add a row with `groupId = "nope"` → row appears under `invalid`; commit is blocked.
-5. Delete a row from the CSV → re-import → record is NOT removed from Firestore (regression guard against destructive imports).
-
-### Task 2 — Images
-1. Upload a 4 MB JPEG → resulting Storage object is `.webp` and < 300 KB; download URL is saved on the student doc.
-2. Replace the photo → old Storage object is deleted (`getMetadata` returns 404); new URL is on the doc.
-3. Network tab: subsequent loads of the avatar hit Storage's CDN with `cache-control: immutable`.
-4. Legacy student with `data:image/...;base64` still renders.
-
-### Task 3 — Assignment
-1. Pick a fresh student, click "Assign All" once → `assignedGoals.length === master_goals.length`.
-2. Click "Assign All" again → length unchanged. No completed flags reset.
-3. Run the healing migration on a seeded student with duplicate entries (181 → 362) → ends at 181, completed goals preserved.
-4. Concurrent test: open the same student in two tabs, click Assign All in both. Final length is still equal to `master_goals.length` (the second write merges atomically because we read-merge-write inside a transaction).
-
-### Cross-cutting
-- `bunx tsc --noEmit` clean.
-- Manual smoke pass: admin tabs (Students, Goals, Import/Export, Database) render with no console errors.
-- Lighthouse: avatar-heavy pages (Leaderboard, Landing) show transfer-size reduction vs baseline.
-
----
-
-## 7. Open Questions (please confirm before I start coding)
-
-1. **Storage bucket**: is the existing Firebase Storage bucket already enabled and admin-writable, or do you want me to add the `storage.rules` in the same PR?
-2. **Healing scope**: run the dedupe automatically on first admin login after deploy, or keep it strictly as a manual button in `AdminDatabaseTab`?
-3. **Image quality**: OK with `webp @ q=0.82, max 800px long edge` as the avatar default? (Roughly 60–120 KB.)
-4. **Import invalid rows**: should "ignore invalid rows" be allowed at all, or always block until the CSV is clean?
-
-Once you confirm, I'll implement in this order: Task 3 (smallest, highest-impact bug) → Task 2 (image pipeline) → Task 1 (import planner + UI).
+- New dependencies: `@codemirror/*` (state, view, language, lang-markdown, autocomplete, commands, search), `@lezer/markdown`, `@lezer/highlight`, `yaml`, `katex`, `mermaid`, `comlink`, `pixi.js`, `@dnd-kit/core`.
+- Removed after migration: `react-markdown` (once post-processor pipeline ships), `remark-breaks`, `rehype-raw`, `react-force-graph-2d`, `three`.
+- Auto-generated files stay untouched: `src/integrations/supabase/client.ts`, `types.ts`, `.env`.
+- Each phase ships as one approved plan and lands green (typecheck, build, no console loops) before the next starts.

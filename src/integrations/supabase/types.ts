@@ -14,257 +14,254 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
+      profiles: {
         Row: {
-          action: string
-          created_at: string
-          details: string | null
-          id: string
-          timestamp: string
-          type: string
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          details?: string | null
-          id?: string
-          timestamp?: string
-          type?: string
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          details?: string | null
-          id?: string
-          timestamp?: string
-          type?: string
-        }
-        Relationships: []
-      }
-      app_events: {
-        Row: {
-          created_at: string
-          device: string
-          event_type: string
-          id: string
-          is_admin: boolean
-          metadata: Json
-          path: string | null
-          ref_id: string | null
-          session_id: string
-        }
-        Insert: {
-          created_at?: string
-          device?: string
-          event_type: string
-          id?: string
-          is_admin?: boolean
-          metadata?: Json
-          path?: string | null
-          ref_id?: string | null
-          session_id: string
-        }
-        Update: {
-          created_at?: string
-          device?: string
-          event_type?: string
-          id?: string
-          is_admin?: boolean
-          metadata?: Json
-          path?: string | null
-          ref_id?: string | null
-          session_id?: string
-        }
-        Relationships: []
-      }
-      categories: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      master_goals: {
-        Row: {
-          category_id: string | null
-          created_at: string
-          description: string | null
-          id: string
-          points: number
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          points?: number
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          points?: number
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      page_views: {
-        Row: {
-          date: string
-          hits: number
-          updated_at: string
-        }
-        Insert: {
-          date: string
-          hits?: number
-          updated_at?: string
-        }
-        Update: {
-          date?: string
-          hits?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      posts: {
-        Row: {
-          author: string | null
-          author_id: string | null
-          category: string | null
-          content: string | null
-          cover_image: string | null
-          created_at: string
-          excerpt: string | null
-          featured_image: string | null
-          id: string
-          meta_description: string | null
-          meta_title: string | null
-          published_at: string | null
-          slug: string
-          status: string
-          tags: string[] | null
-          title: string
-          updated_at: string
-          views: number
-        }
-        Insert: {
-          author?: string | null
-          author_id?: string | null
-          category?: string | null
-          content?: string | null
-          cover_image?: string | null
-          created_at?: string
-          excerpt?: string | null
-          featured_image?: string | null
-          id?: string
-          meta_description?: string | null
-          meta_title?: string | null
-          published_at?: string | null
-          slug: string
-          status?: string
-          tags?: string[] | null
-          title: string
-          updated_at?: string
-          views?: number
-        }
-        Update: {
-          author?: string | null
-          author_id?: string | null
-          category?: string | null
-          content?: string | null
-          cover_image?: string | null
-          created_at?: string
-          excerpt?: string | null
-          featured_image?: string | null
-          id?: string
-          meta_description?: string | null
-          meta_title?: string | null
-          published_at?: string | null
-          slug?: string
-          status?: string
-          tags?: string[] | null
-          title?: string
-          updated_at?: string
-          views?: number
-        }
-        Relationships: []
-      }
-      settings: {
-        Row: {
-          data: Json
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          data?: Json
-          id: string
-          updated_at?: string
-        }
-        Update: {
-          data?: Json
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      students: {
-        Row: {
-          assigned_goals: Json
+          avatar_url: string | null
           bio: string | null
           created_at: string
+          display_name: string | null
+          email: string | null
+          email_verified: boolean
           id: string
-          name: string
-          photo: string | null
-          previous_rank: number | null
-          tags: string[] | null
-          total_points: number | null
+          is_public: boolean
+          last_login_attempt: string | null
+          login_attempts: number
+          preferences: Json | null
           updated_at: string
+          user_id: string
         }
         Insert: {
-          assigned_goals?: Json
+          avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          display_name?: string | null
+          email?: string | null
+          email_verified?: boolean
           id?: string
-          name: string
-          photo?: string | null
-          previous_rank?: number | null
-          tags?: string[] | null
-          total_points?: number | null
+          is_public?: boolean
+          last_login_attempt?: string | null
+          login_attempts?: number
+          preferences?: Json | null
           updated_at?: string
+          user_id: string
         }
         Update: {
-          assigned_goals?: Json
+          avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          display_name?: string | null
+          email?: string | null
+          email_verified?: boolean
           id?: string
-          name?: string
-          photo?: string | null
-          previous_rank?: number | null
-          tags?: string[] | null
-          total_points?: number | null
+          is_public?: boolean
+          last_login_attempt?: string | null
+          login_attempts?: number
+          preferences?: Json | null
           updated_at?: string
+          user_id?: string
         }
         Relationships: []
+      }
+      user_api_keys: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          permissions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          permissions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          permissions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          data: Json
+          device_id: string | null
+          id: string
+          section: string
+          updated_at: string
+          user_id: string
+          vault_id: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          device_id?: string | null
+          id?: string
+          section: string
+          updated_at?: string
+          user_id: string
+          vault_id?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          device_id?: string | null
+          id?: string
+          section?: string
+          updated_at?: string
+          user_id?: string
+          vault_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_vault_id_fkey"
+            columns: ["vault_id"]
+            isOneToOne: false
+            referencedRelation: "user_vaults"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_vaults: {
+        Row: {
+          backup_config: Json | null
+          created_at: string
+          description: string | null
+          encryption_key_hash: string | null
+          graph_config: Json | null
+          graph_data: Json
+          id: string
+          is_encrypted: boolean
+          last_synced_at: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_config?: Json | null
+          created_at?: string
+          description?: string | null
+          encryption_key_hash?: string | null
+          graph_config?: Json | null
+          graph_data?: Json
+          id?: string
+          is_encrypted?: boolean
+          last_synced_at?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_config?: Json | null
+          created_at?: string
+          description?: string | null
+          encryption_key_hash?: string | null
+          graph_config?: Json | null
+          graph_data?: Json
+          id?: string
+          is_encrypted?: boolean
+          last_synced_at?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vault_backups: {
+        Row: {
+          created_at: string
+          id: string
+          links: Json
+          nodes: Json
+          reason: string | null
+          user_id: string
+          vault_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          links?: Json
+          nodes?: Json
+          reason?: string | null
+          user_id: string
+          vault_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          links?: Json
+          nodes?: Json
+          reason?: string | null
+          user_id?: string
+          vault_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_backups_vault_id_fkey"
+            columns: ["vault_id"]
+            isOneToOne: false
+            referencedRelation: "user_vaults"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vault_history: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot: Json
+          user_id: string
+          vault_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id: string
+          vault_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot?: Json
+          user_id?: string
+          vault_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_history_vault_id_fkey"
+            columns: ["vault_id"]
+            isOneToOne: false
+            referencedRelation: "user_vaults"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -290,12 +287,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -319,11 +316,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -344,11 +341,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -369,11 +366,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -386,11 +383,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
